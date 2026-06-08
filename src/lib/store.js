@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, copyFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import {
   ensureEmpresaMasterShape,
@@ -12,18 +13,40 @@ import {
 } from './store/worker-master-store.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, '..', '..', 'data');
-const DB_FILE = join(DATA_DIR, 'db.json');
+const LOCAL_DATA_DIR = join(__dirname, '..', '..', 'data');
+const BUNDLED_DB = join(LOCAL_DATA_DIR, 'db.json');
+
+/** En Vercel el filesystem del proyecto es de solo lectura; persistir en /tmp. */
+function resolveDataPaths() {
+  if (process.env.VERCEL) {
+    const dataDir = join(tmpdir(), 'sepeimp');
+    return { dataDir, dbFile: join(dataDir, 'db.json') };
+  }
+  return { dataDir: LOCAL_DATA_DIR, dbFile: BUNDLED_DB };
+}
+
+function ensureDbFile(dataDir, dbFile) {
+  mkdirSync(dataDir, { recursive: true });
+  if (existsSync(dbFile)) return;
+
+  if (existsSync(BUNDLED_DB) && dbFile !== BUNDLED_DB) {
+    try {
+      copyFileSync(BUNDLED_DB, dbFile);
+      return;
+    } catch {
+      /* seed opcional */
+    }
+  }
+
+  writeFileSync(dbFile, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
+}
 
 const EMPTY_DB = { empresas: [], trabajadores: [] };
 
 function loadDb() {
-  mkdirSync(DATA_DIR, { recursive: true });
-  if (!existsSync(DB_FILE)) {
-    writeFileSync(DB_FILE, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
-    return structuredClone(EMPTY_DB);
-  }
-  const raw = readFileSync(DB_FILE, 'utf8');
+  const { dataDir, dbFile } = resolveDataPaths();
+  ensureDbFile(dataDir, dbFile);
+  const raw = readFileSync(dbFile, 'utf8');
   const parsed = JSON.parse(raw);
   return {
     empresas: (parsed.empresas ?? []).map(ensureEmpresaMasterShape),
@@ -32,8 +55,9 @@ function loadDb() {
 }
 
 function saveDb(db) {
-  mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  const { dataDir, dbFile } = resolveDataPaths();
+  ensureDbFile(dataDir, dbFile);
+  writeFileSync(dbFile, JSON.stringify(db, null, 2), 'utf8');
 }
 
 export function getStore() {
