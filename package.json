@@ -1,0 +1,28 @@
+{
+  "name": "sepeimp",
+  "version": "1.0.0",
+  "description": "Generador XML SEPE L2606002 (LLAMAMIENTOS) desde Excel",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "stop": "node scripts/stop-server.js",
+    "test:company-pdf": "node scripts/test-company-pdf-extract.js",
+    "test:worker-pdf": "node scripts/test-worker-pdf-extract.js",
+    "test:a3-worker-excel": "node scripts/test-a3-worker-excel.js",
+    "test:usolibre-empresa": "node scripts/test-usolibre-empresa.js",
+    "test:normalize-sepe": "node scripts/test-normalize-sepe.js",
+    "test:join-trabajador": "node scripts/test-join-trabajador.js",
+    "backfill-fechas": "node scripts/backfill-fechas-from-xls.js \"data/PRUEBA EL ALTO.xls\""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5",
+    "xmlbuilder2": "^3.1.1"
+  }
+}

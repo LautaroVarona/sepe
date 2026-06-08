@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEPEIMP — Llamamientos XML</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="header__badge">
+          SEPE · L2606002 · <span id="appVersion">…</span>
+        </div>
+        <p class="header__lead">
+          Importa tu Excel Saltra (filas Alta/Baja) u otro formato. Se unen inicio y fin por
+          trabajador; los vacíos se completan desde empresas y trabajadores guardados.
+        </p>
+        <nav class="tabs" role="tablist">
+          <button type="button" class="tabs__btn tabs__btn--active" data-tab="generar">
+            Generar XML
+          </button>
+          <button type="button" class="tabs__btn" data-tab="empresas">Empresas</button>
+          <button type="button" class="tabs__btn" data-tab="trabajadores">Trabajadores</button>
+        </nav>
+      </header>
+
+      <!-- GENERAR -->
+      <section id="panel-generar" class="panel panel--generar panel--active">
+        <div class="generar-form card">
+          <label class="field field--inline">
+            <span>Empresa por defecto</span>
+            <select id="empresaSelect">
+              <option value="">— Sin empresa fija —</option>
+            </select>
+          </label>
+
+          <div class="upload-row">
+            <div
+              id="dropzone"
+              class="dropzone"
+              tabindex="0"
+              role="button"
+              aria-label="Importar Excel"
+            >
+              <input type="file" id="fileInput" accept=".xlsx,.xls" hidden />
+              <span class="dropzone__title">Excel Saltra / otro</span>
+              <button type="button" id="browseBtn" class="btn btn--secondary btn--sm">
+                Elegir archivo
+              </button>
+            </div>
+            <p id="fileName" class="file-name" hidden></p>
+          </div>
+
+          <details class="options">
+            <summary>Opciones</summary>
+            <div class="options__grid">
+              <label>
+                Prefijo XML
+                <input type="text" id="prefix" placeholder="Opcional" />
+              </label>
+              <label>
+                Hoja (0 = primera)
+                <input type="number" id="sheetIndex" value="0" min="0" />
+              </label>
+              <label>
+                Fila cabeceras
+                <input type="number" id="headerRow" value="1" min="1" />
+              </label>
+            </div>
+          </details>
+
+          <button type="button" id="generateBtn" class="btn btn--primary" disabled>
+            Generar XML
+          </button>
+        </div>
+
+        <div id="resultArea" class="generar-results" hidden>
+          <div id="resultSummary" class="card card--compact"></div>
+          <div id="recordsWorkspace" class="card records-workspace" hidden>
+            <div class="records-toolbar">
+              <div class="records-toolbar__left">
+                <label for="xmlFileSelect" class="records-toolbar__label">Parte XML</label>
+                <select id="xmlFileSelect" class="records-toolbar__select"></select>
+                <span id="recordsChunkHint" class="muted"></span>
+              </div>
+              <div class="records-toolbar__right">
+                <button type="button" id="exportOneBtn" class="btn btn--secondary btn--sm">
+                  Exportar este
+                </button>
+                <button type="button" id="exportAllBtn" class="btn btn--primary btn--sm">
+                  Exportar todos
+                </button>
+              </div>
+            </div>
+            <div id="recordsTableWrap" class="records-table-wrap"></div>
+          </div>
+          <details id="xmlDetails" class="card card--xml-fold">
+            <summary>Vista XML (avanzado)</summary>
+            <div id="xmlOutput" class="xml-output-inner"></div>
+          </details>
+        </div>
+      </section>
+
+      <!-- EMPRESAS -->
+      <section id="panel-empresas" class="panel" hidden>
+        <div class="card">
+          <h2>Nueva / editar empresa</h2>
+          <form id="empresaForm" class="form-grid">
+            <input type="hidden" id="empresaId" />
+            <label>Nombre interno <input type="text" id="empresaNombre" required /></label>
+            <label>Código empresa A3 <input type="text" id="empresaCodigoA3" placeholder="Ej. 96280" /></label>
+            <label>CCC <input type="text" id="empresaCcc" /></label>
+            <label>NIF empresa <input type="text" id="empresaNif" /></label>
+            <label>Uso libre empresa <input type="text" id="empresaUsoLibre" /></label>
+            <label>Clave contrato (def.) <input type="text" id="empresaClaveContrato" /></label>
+            <label>Nivel formativo (def.) <input type="text" id="empresaNivel" /></label>
+            <label>
+              Incorpora actividad (def.)
+              <select id="empresaInd">
+                <option value="">—</option>
+                <option value="S">S</option>
+                <option value="N">N</option>
+              </select>
+            </label>
+            <div class="form-actions">
+              <button type="button" id="empresaImportPdf" class="btn btn--secondary btn--sm">
+                Importar ficha empresa PDF
+              </button>
+              <button type="submit" class="btn btn--primary btn--sm">Guardar</button>
+              <button type="button" id="empresaCancel" class="btn btn--secondary btn--sm" hidden>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Empresas guardadas</h2>
+          <div id="empresasList" class="data-list"></div>
+        </div>
+      </section>
+
+      <!-- TRABAJADORES -->
+      <section id="panel-trabajadores" class="panel" hidden>
+        <div class="card">
+          <div class="card__toolbar">
+            <h2>Nuevo / editar trabajador</h2>
+            <button type="button" id="trabajadorImportPdf" class="btn btn--secondary btn--sm">
+              Importar PDF (A3)
+            </button>
+            <button type="button" id="trabajadorImportExcel" class="btn btn--secondary btn--sm">
+              Importar Excel (A3)
+            </button>
+          </div>
+          <div id="trabajadorImportNotice" class="alert alert--ok" hidden></div>
+          <form id="trabajadorForm" class="form-grid form-grid--wide">
+            <input type="hidden" id="trabajadorId" />
+            <label>Empresa
+              <select id="trabajadorEmpresa"></select>
+            </label>
+            <label>DNI/NIE <input type="text" id="trabajadorDni" required /></label>
+            <label>Cód. trabajador (A3)
+              <input type="text" id="trabajadorCodigo" placeholder="ej. 021106" title="Código del trabajador en A3; se usa en USOLIBRE_EMPRESA (bloque T)" />
+            </label>
+            <label>NSS (12 dígitos) <input type="text" id="trabajadorNss" /></label>
+            <label>Nombre <input type="text" id="trabajadorNombre" /></label>
+            <label>Primer apellido <input type="text" id="trabajadorApellido1" /></label>
+            <label>Segundo apellido <input type="text" id="trabajadorApellido2" /></label>
+            <label>Sexo <input type="text" id="trabajadorSexo" placeholder="1 / 2" /></label>
+            <label>F. nacimiento (YYYYMMDD) <input type="text" id="trabajadorFecNac" /></label>
+            <label>Nacionalidad <input type="text" id="trabajadorNacionalidad" /></label>
+            <label>Municipio residencia <input type="text" id="trabajadorMunicipio" /></label>
+            <label>País residencia <input type="text" id="trabajadorPais" value="724" /></label>
+            <label>Cód. ocupación <input type="text" id="trabajadorOcupacion" /></label>
+            <label>Nivel formativo <input type="text" id="trabajadorNivel" /></label>
+            <label>
+              Incorpora (def.)
+              <select id="trabajadorInd">
+                <option value="S" selected>S</option>
+                <option value="N">N</option>
+              </select>
+            </label>
+            <div class="form-actions form-actions--wide">
+              <button type="submit" class="btn btn--primary btn--sm">Guardar</button>
+              <button type="button" id="trabajadorCancel" class="btn btn--secondary btn--sm" hidden>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card__toolbar">
+            <h2>Trabajadores guardados</h2>
+            <button
+              type="button"
+              id="trabajadoresDeleteAll"
+              class="btn btn--ghost btn--sm"
+              hidden
+            >
+              Borrar todos
+            </button>
+          </div>
+          <div id="trabajadoresFilters" class="trabajadores-filters" hidden>
+            <span class="muted">Filtrar:</span>
+            <button type="button" class="btn btn--ghost btn--sm trabajadores-filter trabajadores-filter--active" data-trab-filter="all">Todos</button>
+            <button type="button" class="btn btn--ghost btn--sm trabajadores-filter" data-trab-filter="complete">Completos</button>
+            <button type="button" class="btn btn--ghost btn--sm trabajadores-filter" data-trab-filter="incomplete">Incompletos</button>
+            <button type="button" class="btn btn--ghost btn--sm trabajadores-filter" data-trab-filter="duplicate">DNI duplicado</button>
+          </div>
+          <div id="trabajadoresList" class="data-list"></div>
+        </div>
+      </section>
+    </div>
+
+    <dialog id="workerImportDialog" class="import-dialog import-dialog--wide">
+      <div class="import-dialog__inner" id="workerImportInner">
+        <div class="import-dialog__header">
+          <div class="import-dialog__header-row">
+            <h2 class="import-dialog__title">Importar trabajadores (A3)</h2>
+            <button
+              type="button"
+              id="workerImportToggleSetup"
+              class="btn btn--ghost btn--sm"
+              hidden
+            >
+              Ocultar opciones
+            </button>
+          </div>
+        </div>
+
+        <div id="workerImportSetup" class="import-dialog__setup">
+          <div class="import-tabs" role="tablist">
+            <button
+              type="button"
+              class="import-tabs__btn import-tabs__btn--active"
+              data-worker-import-mode="pdf"
+              role="tab"
+              aria-selected="true"
+            >
+              PDF
+            </button>
+            <button
+              type="button"
+              class="import-tabs__btn"
+              data-worker-import-mode="excel"
+              role="tab"
+              aria-selected="false"
+            >
+              Excel
+            </button>
+          </div>
+
+          <div id="workerImportPanelPdf" class="import-panel">
+            <p class="import-dialog__lead muted">
+              PDF con una o muchas fichas (2–3 páginas por trabajador). Revisa la tabla,
+              selecciona filas y cárgalas en el formulario; no se guardan hasta pulsar Guardar.
+            </p>
+            <input type="file" id="workerPdfInput" accept=".pdf,application/pdf" hidden />
+            <div class="import-dialog__pick">
+              <button type="button" id="workerPdfBrowse" class="btn btn--secondary btn--sm">
+                Seleccionar PDF
+              </button>
+              <span id="workerPdfFileName" class="file-name" hidden></span>
+            </div>
+          </div>
+
+          <div id="workerImportPanelExcel" class="import-panel" hidden>
+            <p class="import-dialog__lead muted">
+              Excel exportado desde A3. Revisa descartadas e inconsistencias si las hay, elige
+              empresa y pulsa «Importar todos» para registrar cada persona (DNI único) en el sistema.
+            </p>
+            <div class="import-dialog__options">
+              <label class="field field--inline">
+                <span>Empresa</span>
+                <select id="workerExcelEmpresa">
+                  <option value="">— Sin empresa fija —</option>
+                </select>
+              </label>
+              <label class="field field--inline">
+                <span>Fila cabeceras</span>
+                <input type="number" id="workerExcelHeaderRow" value="1" min="1" />
+              </label>
+            </div>
+            <input
+              type="file"
+              id="workerExcelInput"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              hidden
+            />
+            <div class="import-dialog__pick">
+              <button type="button" id="workerExcelBrowse" class="btn btn--secondary btn--sm">
+                Seleccionar Excel
+              </button>
+              <button type="button" id="workerExcelBackfillFechas" class="btn btn--ghost btn--sm" title="Rellena F. nacimiento en trabajadores ya guardados (sin crear duplicados)">
+                Actualizar fechas en guardados
+              </button>
+              <button type="button" id="workerExcelBackfillCodigos" class="btn btn--ghost btn--sm" title="Rellena Cód. trabajador en guardados por DNI (columna Código_del_Trabajador); no sobrescribe códigos existentes">
+                Actualizar códigos en guardados
+              </button>
+              <span id="workerExcelFileName" class="file-name" hidden></span>
+            </div>
+          </div>
+
+          <p id="workerImportStatus" class="import-dialog__status muted"></p>
+          <div id="workerImportAlerts" class="import-dialog__alerts"></div>
+        </div>
+
+        <div id="workerImportSetupChip" class="import-dialog__setup-chip" hidden></div>
+
+        <div class="import-dialog__workspace">
+          <div id="workerImportReviewBar" class="import-review-bar" hidden></div>
+          <div id="workerImportViewContainer" class="import-dialog__view-container">
+            <div id="workerImportPreview" hidden></div>
+            <div id="workerImportDescartadas" hidden></div>
+            <div id="workerImportInconsistencias" hidden></div>
+          </div>
+        </div>
+
+        <div class="import-dialog__actions">
+          <button type="button" id="workerImportLoad" class="btn btn--primary btn--sm" disabled>
+            Cargar en formulario
+          </button>
+          <button type="button" id="workerImportClose" class="btn btn--ghost btn--sm">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="companyImportDialog" class="import-dialog">
+      <div class="import-dialog__inner">
+        <h2 class="import-dialog__title">Importar ficha empresa (A3)</h2>
+        <p class="import-dialog__lead muted">
+          Selecciona el PDF exportado desde A3. Los datos se mostrarán para revisión;
+          no se guardan hasta que pulses Guardar en el formulario.
+        </p>
+        <input type="file" id="companyPdfInput" accept=".pdf,application/pdf" hidden />
+        <div class="import-dialog__pick">
+          <button type="button" id="companyPdfBrowse" class="btn btn--secondary btn--sm">
+            Seleccionar PDF
+          </button>
+          <span id="companyImportFileName" class="file-name" hidden></span>
+        </div>
+        <p id="companyImportStatus" class="import-dialog__status muted"></p>
+        <div id="companyImportAlerts"></div>
+        <div id="companyImportPreview" class="import-dialog__preview" hidden></div>
+        <div class="import-dialog__actions">
+          <button type="button" id="companyImportApply" class="btn btn--primary btn--sm" disabled>
+            Aplicar al formulario
+          </button>
+          <button type="button" id="companyImportClose" class="btn btn--ghost btn--sm">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="/js/app.js" type="module"></script>
+  </body>
+</html>
