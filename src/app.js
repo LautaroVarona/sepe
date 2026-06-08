@@ -20,8 +20,6 @@ import {
   getStore,
   persistStore,
 } from './lib/store.js';
-import { importCompanyFromPdfBuffer } from './lib/companyPdfImport.js';
-import { importWorkersFromPdfBuffer } from './lib/workerPdfImport.js';
 import { importWorkersFromExcelBuffer } from './lib/workerExcelImport.js';
 import { bulkImportWorkersFromExcelBuffer } from './lib/services/worker-bulk-import-service.js';
 import { enrichTrabajadorList } from './lib/worker-completeness.js';
@@ -70,7 +68,10 @@ const workerPdfUpload = multer({
 });
 
 const app = express();
-const publicDir = join(__dirname, '..', 'public');
+/** En Vercel el cwd es la raíz del proyecto; en local, relativo a src/. */
+const publicDir = process.env.VERCEL
+  ? join(process.cwd(), 'public')
+  : join(__dirname, '..', 'public');
 
 app.use(express.json({ limit: '2mb' }));
 app.use((_req, res, next) => {
@@ -123,6 +124,7 @@ app.post('/api/empresas/parse-pdf', pdfUpload.single('file'), async (req, res) =
         errors: ['Debes seleccionar un archivo PDF'],
       });
     }
+    const { importCompanyFromPdfBuffer } = await import('./lib/companyPdfImport.js');
     const result = await importCompanyFromPdfBuffer(req.file.buffer);
     res.json(result);
   } catch (err) {
@@ -267,6 +269,7 @@ app.post('/api/trabajadores/parse-pdf', workerPdfUpload.single('file'), async (r
         errors: ['Debes seleccionar un archivo PDF'],
       });
     }
+    const { importWorkersFromPdfBuffer } = await import('./lib/workerPdfImport.js');
     const result = await importWorkersFromPdfBuffer(req.file.buffer);
     res.json(result);
   } catch (err) {
