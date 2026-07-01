@@ -1,6 +1,8 @@
 node_modules/
+dist/
 output/
 data/db.json
+data/generated/
 input/
 *.log
 .DS_Store

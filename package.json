@@ -15,6 +15,8 @@
     "test:join-trabajador": "node scripts/test-join-trabajador.js",
     "test:saltra-pairing": "node scripts/test-saltra-pairing.js",
     "test:clean-llamamiento": "node scripts/test-clean-llamamiento.js",
+    "generate:fuentes": "tsx scripts/generate-from-fuentes.ts",
+    "typecheck": "tsc --noEmit",
     "backfill-fechas": "node scripts/backfill-fechas-from-xls.js \"data/PRUEBA EL ALTO.xls\""
   },
   "engines": {
@@ -26,5 +28,10 @@
     "pdf-parse": "^2.4.5",
     "xlsx": "^0.18.5",
     "xmlbuilder2": "^3.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

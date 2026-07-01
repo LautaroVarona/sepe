@@ -42,3 +42,37 @@ Raíz `LLAMAMIENTOS`, máximo 30 `LLAMAMIENTO_TIPO` por fichero, codificación I
 ## Alias de columnas Excel
 
 Definidos en `src/config/mapping.js` → `HEADER_ALIASES`. Si Saltra usa otro nombre, añádelo ahí.
+
+## Servicio TypeScript (fuentes → XML)
+
+Generación batch desde la carpeta `fuentes/`:
+
+```powershell
+npm install
+npm run generate:fuentes
+```
+
+| Archivo | Rol |
+|---------|-----|
+| `fuentes/tmp22E8.xls` | Base maestra trabajadores A3 |
+| `fuentes/00. 2026 GR. EL ALTO - Llamamientos.xlsx` | Movimientos Alta/Baja |
+| `fuentes/L2606002.XML` | Referencia de estructura XML |
+
+Salida en `data/generated/*.XML` (ISO-8859-1, máx. 30 registros/fichero).
+
+Código en `src/services/sepe-llamamientos/`:
+
+1. Ingesta movimientos → orden por DNI/fecha → empareja Alta+Baja del mismo mes → descarta bajas huérfanas
+2. Cruce con maestro A3 por DNI (error logueado, no detiene)
+3. Limpieza: NIE sin ceros, fechas invertidas, nombres truncados (15/20)
+4. XML según estructura L2606002
+
+```typescript
+import { generateSepeLlamamientosXml } from './src/services/sepe-llamamientos/index.js';
+
+const result = generateSepeLlamamientosXml({
+  movementPaths: ['fuentes/00. 2026 GR. EL ALTO - Llamamientos.xlsx'],
+  masterPath: 'fuentes/tmp22E8.xls',
+  empresa: { nifEmpresa: 'B96562467', ccc: '46109049727', codigoEmpresaA3: '96280' },
+});
+```

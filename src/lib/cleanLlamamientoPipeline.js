@@ -1,7 +1,3 @@
-/**
- * Limpieza previa a normalización SEPE / generación XML.
- */
-
 function isEmpty(val) {
   return val === undefined || val === null || String(val).trim() === '';
 }
@@ -41,6 +37,14 @@ export function fixFechaChronology(fechaInicio, fechaFin) {
   return { FECHA_INICIO: inicio, FECHA_FIN: fin, swapped: false };
 }
 
+function truncateNameFields(record) {
+  return {
+    NOMBRE: String(record.NOMBRE ?? '').substring(0, 15),
+    PRIMER_APELLIDO: String(record.PRIMER_APELLIDO ?? '').substring(0, 20),
+    SEGUNDO_APELLIDO: String(record.SEGUNDO_APELLIDO ?? '').substring(0, 20),
+  };
+}
+
 /**
  * Aplica reglas de limpieza a un registro SEPE (post-merge).
  * @returns {{ record: object, warnings: string[] }}
@@ -68,6 +72,11 @@ export function cleanLlamamientoRecord(record) {
   }
   out.FECHA_INICIO = FECHA_INICIO;
   out.FECHA_FIN = FECHA_FIN;
+
+  const names = truncateNameFields(out);
+  out.NOMBRE = names.NOMBRE;
+  out.PRIMER_APELLIDO = names.PRIMER_APELLIDO;
+  out.SEGUNDO_APELLIDO = names.SEGUNDO_APELLIDO;
 
   return { record: out, warnings };
 }
