@@ -45,11 +45,9 @@ function cellStr(val) {
 }
 
 export function isSaltraLlamamientosFormat(headerRow) {
-  const norms = (headerRow ?? []).map((h) => normalizeHeaderName(h));
-  return norms.some(
-    (n) =>
-      n === COL.MOVIMIENTO ||
-      (n.includes('TIPO') && n.includes('MOVIMIENTO')),
+  const colIdx = buildSaltraColumnIndex(headerRow ?? []);
+  return (
+    colIdx[COL.MOVIMIENTO] !== undefined && colIdx[COL.FECHA] !== undefined
   );
 }
 
@@ -153,17 +151,44 @@ function rowToMovement(row, colIdx, excelRowNumber) {
   };
 }
 
-function personKey(record) {
-  const dni = normId(record.IDENTIFICADORPFISICA);
+/** Claves de emparejamiento (DNI y NSS pueden alternarse entre filas Alta/Baja). */
+function personKeys(record) {
+  const keys = [];
+  const dni = normalizeSaltraDni(record.IDENTIFICADORPFISICA || '');
+  if (dni) keys.push(`dni:${normId(dni)}`);
   const nss = normNss(record.NUMERO_SEGURIDAD_SOCIAL);
-  if (dni) return `dni:${dni}`;
-  if (nss) return `nss:${nss}`;
-  const name = normText(
-    [record.NOMBRE, record.PRIMER_APELLIDO, record.SEGUNDO_APELLIDO]
-      .filter(Boolean)
-      .join(' '),
-  );
-  return name ? `nom:${name}` : '';
+  if (nss) keys.push(`nss:${nss}`);
+  if (keys.length === 0) {
+    const name = normText(
+      [record.NOMBRE, record.PRIMER_APELLIDO, record.SEGUNDO_APELLIDO]
+        .filter(Boolean)
+        .join(' '),
+    );
+    if (name) keys.push(`nom:${name}`);
+  }
+  return keys;
+}
+
+function registerPendingAlta(pendingByKey, pendingEntries, alta) {
+  const keys = personKeys(alta.record);
+  if (keys.length === 0) return null;
+  const entry = { alta, keys };
+  pendingEntries.add(entry);
+  for (const key of keys) pendingByKey.set(key, entry);
+  return entry;
+}
+
+function findPendingAlta(pendingByKey, record) {
+  for (const key of personKeys(record)) {
+    const entry = pendingByKey.get(key);
+    if (entry) return entry;
+  }
+  return null;
+}
+
+function clearPendingAlta(pendingByKey, pendingEntries, entry) {
+  pendingEntries.delete(entry);
+  for (const key of entry.keys) pendingByKey.delete(key);
 }
 
 function mergeField(target, altaVal, bajaVal) {
@@ -222,7 +247,8 @@ function finalizeBajaOnly(baja) {
  * Empareja filas Alta/Baja del Excel Saltra en un llamamiento (inicio + fin).
  */
 export function pairAltaBajaMovements(movements) {
-  const pending = new Map();
+  const pendingByKey = new Map();
+  const pendingEntries = new Set();
   const output = [];
   const warnings = [];
   let pairedCount = 0;
@@ -230,8 +256,6 @@ export function pairAltaBajaMovements(movements) {
   let bajaSinAlta = 0;
 
   for (const mov of movements) {
-    const key = personKey(mov.record);
-
     if (!mov.movementType) {
       output.push({
         ...mov,
@@ -244,7 +268,8 @@ export function pairAltaBajaMovements(movements) {
       continue;
     }
 
-    if (!key) {
+    const keys = personKeys(mov.record);
+    if (keys.length === 0) {
       output.push({
         ...mov,
         sourceRows: [mov.excelRowNumber],
@@ -257,23 +282,24 @@ export function pairAltaBajaMovements(movements) {
     }
 
     if (mov.movementType === 'alta') {
-      if (pending.has(key)) {
-        const prev = pending.get(key);
-        output.push(finalizeAltaOnly(prev));
+      const existing = findPendingAlta(pendingByKey, mov.record);
+      if (existing) {
+        output.push(finalizeAltaOnly(existing.alta));
+        clearPendingAlta(pendingByKey, pendingEntries, existing);
         altaSinBaja += 1;
         warnings.push(
-          `Filas ${prev.excelRowNumber}–${mov.excelRowNumber}: nueva Alta sin Baja de la Alta anterior (mismo trabajador)`,
+          `Filas ${existing.alta.excelRowNumber}–${mov.excelRowNumber}: nueva Alta sin Baja de la Alta anterior (mismo trabajador)`,
         );
       }
-      pending.set(key, mov);
+      registerPendingAlta(pendingByKey, pendingEntries, mov);
       continue;
     }
 
     if (mov.movementType === 'baja') {
-      const alta = pending.get(key);
-      if (alta) {
-        output.push(mergeAltaBaja(alta, mov));
-        pending.delete(key);
+      const pendingEntry = findPendingAlta(pendingByKey, mov.record);
+      if (pendingEntry) {
+        output.push(mergeAltaBaja(pendingEntry.alta, mov));
+        clearPendingAlta(pendingByKey, pendingEntries, pendingEntry);
         pairedCount += 1;
       } else {
         output.push(finalizeBajaOnly(mov));
@@ -285,11 +311,11 @@ export function pairAltaBajaMovements(movements) {
     }
   }
 
-  for (const alta of pending.values()) {
-    output.push(finalizeAltaOnly(alta));
+  for (const entry of pendingEntries) {
+    output.push(finalizeAltaOnly(entry.alta));
     altaSinBaja += 1;
     warnings.push(
-      `Fila ${alta.excelRowNumber}: Alta sin Baja emparejada (mismo trabajador)`,
+      `Fila ${entry.alta.excelRowNumber}: Alta sin Baja emparejada (mismo trabajador)`,
     );
   }
 

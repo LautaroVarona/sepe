@@ -33,8 +33,20 @@ export function validateTrabajadorJoin({ trabajador, record, rowLabel }) {
  * Validaciones duras de datos de llamamiento (post-merge).
  * @returns {{ ok: true } | { ok: false, reason: string, message: string }}
  */
-export function validateRequiredLlamamiento({ record, rowLabel }) {
+export function validateRequiredLlamamiento({ record, rowLabel, movementPair }) {
   const prefix = rowLabel ? `Fila ${rowLabel}: ` : '';
+
+  if (movementPair === 'baja-sin-alta') {
+    const fechaFin = normalizeFechaYmd(record.FECHA_FIN);
+    if (!fechaFin) {
+      return {
+        ok: false,
+        reason: 'no_fecha_fin',
+        message: `${prefix}falta FECHA_FIN obligatoria (Baja sin Alta emparejada)`,
+      };
+    }
+    return { ok: true };
+  }
 
   const fechaInicio = normalizeFechaYmd(record.FECHA_INICIO);
   if (!fechaInicio) {

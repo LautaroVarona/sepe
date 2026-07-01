@@ -13,6 +13,7 @@
     "test:usolibre-empresa": "node scripts/test-usolibre-empresa.js",
     "test:normalize-sepe": "node scripts/test-normalize-sepe.js",
     "test:join-trabajador": "node scripts/test-join-trabajador.js",
+    "test:saltra-pairing": "node scripts/test-saltra-pairing.js",
     "backfill-fechas": "node scripts/backfill-fechas-from-xls.js \"data/PRUEBA EL ALTO.xls\""
   },
   "engines": {
