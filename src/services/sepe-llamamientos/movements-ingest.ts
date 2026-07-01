@@ -3,6 +3,7 @@ import {
   normalizeFechaYmd,
   normalizeNieIdentificador,
   normalizeNss,
+  normalizeCcc,
   parseMovementType,
   splitNombreCompleto,
 } from './normalize.js';
@@ -75,7 +76,7 @@ export function ingestMovementFile(
       segundoApellido: split.segundoApellido,
       contrato: getCell(row, colIdx, 'CONTRATO').replace(/\s+$/, '').trim(),
       cno: getCell(row, colIdx, 'CNO').replace(/\s+$/, '').trim(),
-      ccc: getCell(row, colIdx, 'CCC').replace(/\s+/g, '').trim(),
+      ccc: normalizeCcc(getCell(row, colIdx, 'CCC')),
     });
   }
 

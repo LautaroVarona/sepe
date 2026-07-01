@@ -1,14 +1,9 @@
-import type {
-  EmpresaDefaults,
-  GenerateLogEntry,
-  MasterWorker,
-  PairedLlamamiento,
-  SepeLlamamientoRecord,
-} from './types.js';
+import type { EmpresaDefaults, GenerateLogEntry, MasterWorker, PairedLlamamiento, SepeLlamamientoRecord } from './types.js';
 import {
   fixFechaChronology,
   formatCodigoOcupacion,
   normalizeNieIdentificador,
+  normalizeCcc,
   truncateNameFields,
 } from './normalize.js';
 import { buildUsoLibreEmpresa } from './usolibre.js';
@@ -72,7 +67,7 @@ export function mergeWithMaster(
 
     const cno = formatCodigoOcupacion(pickString(row.cno, master.codigoOcupacion));
     const contrato = pickString(row.contrato) || MISSING;
-    const ccc = pickString(row.ccc, empresa.ccc) || MISSING;
+    const ccc = normalizeCcc(pickString(empresa.ccc, row.ccc)) || MISSING;
 
     const draft: SepeLlamamientoRecord = {
       CCC: ccc,

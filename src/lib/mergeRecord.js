@@ -6,6 +6,14 @@ import {
 } from './trabajadorIndex.js';
 
 const EMPRESA_FIELDS = ['CCC', 'NIF_EMPRESA', 'USOLIBRE_EMPRESA'];
+/** Campos de empresa que deben tomarse del maestro (no del Excel Saltra abreviado). */
+const EMPRESA_IDENTITY_FIELDS = ['CCC', 'NIF_EMPRESA'];
+const EMPRESA_DEFAULT_FIELDS = [
+  'USOLIBRE_EMPRESA',
+  'CLAVE_CONTRATO_TRANS',
+  'NIVEL_FORMATIVO',
+  'IND_INCORPORA_ACTIVIDAD',
+];
 const TRABAJADOR_FIELDS = [
   'IDENTIFICADORPFISICA',
   'NOMBRE',
@@ -70,10 +78,23 @@ export function mergeRecord(excelRecord, { empresa, trabajador, matchBy } = {}) 
   const empresaData = empresaToRecord(empresa);
   const trabajadorData = trabajadorToRecord(trabajador);
 
-  for (const [field, value] of Object.entries(empresaData)) {
+  for (const field of EMPRESA_DEFAULT_FIELDS) {
+    const value = empresaData[field];
     if (isEmpty(merged[field]) && !isEmpty(value)) {
       merged[field] = value;
       filledFrom.push({ field, source: 'empresa' });
+    }
+  }
+
+  if (empresa) {
+    for (const field of EMPRESA_IDENTITY_FIELDS) {
+      const value = empresaData[field];
+      if (!isEmpty(value)) {
+        if (merged[field] !== value) {
+          merged[field] = value;
+          filledFrom.push({ field, source: 'empresa' });
+        }
+      }
     }
   }
 

@@ -72,6 +72,14 @@ export function truncateNameFields(record: {
   };
 }
 
+export function normalizeCcc(value: string | number | undefined | null): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return String(value).trim().replace(/[\s-]/g, '');
+}
+
 export function normalizeSexo(value: string | undefined): string {
   const v = String(value ?? '').trim().toUpperCase();
   if (v === 'HOMBRE' || v === 'H' || v === '1') return '1';

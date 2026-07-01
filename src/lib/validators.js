@@ -191,7 +191,7 @@ export function validateRecordSoft(record, rowNumber) {
   }
 
   if (!isEmpty(out.CCC)) {
-    out.CCC = String(out.CCC).trim();
+    out.CCC = String(out.CCC).trim().replace(/[\s-]/g, '');
   }
 
   const missingFields = ALL_FIELDS.filter((f) => isEmpty(out[f]));

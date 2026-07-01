@@ -2,6 +2,7 @@ import XLSX from 'xlsx';
 import { ALL_FIELDS, normalizeHeaderName } from '../config/mapping.js';
 import { normId, normNss, normText } from './trabajadorIndex.js';
 import { normalizeNieIdentificador } from './cleanLlamamientoPipeline.js';
+import { normalizeCcc } from './normalizeSepeFields.js';
 
 const COL = {
   MOVIMIENTO: 'TIPO_DE_MOVIMIENTO',
@@ -72,6 +73,10 @@ function parseMovementType(value) {
   return null;
 }
 
+function normalizeCccFromCell(value) {
+  return normalizeCcc(cellStr(value));
+}
+
 function normalizeSaltraDni(value) {
   return normalizeNieIdentificador(value);
 }
@@ -135,7 +140,7 @@ function rowToMovement(row, colIdx, excelRowNumber) {
   record.NUMERO_SEGURIDAD_SOCIAL = normNss(get(COL.NSS));
   record.CLAVE_CONTRATO_TRANS = get(COL.CONTRATO).replace(/\s+$/, '').trim();
   record.CODIGO_OCUPACION = get(COL.CNO).replace(/\s+$/, '').trim();
-  record.CCC = get(COL.CCC).replace(/\s+/g, '').trim();
+  record.CCC = normalizeCccFromCell(get(COL.CCC));
 
   const fecha = parseFechaMovimiento(get(COL.FECHA));
   if (movementType === 'alta') record.FECHA_INICIO = fecha;

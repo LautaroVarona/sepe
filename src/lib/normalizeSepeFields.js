@@ -38,6 +38,15 @@ export function normalizeFechaYmd(value) {
   return normalizeFechaYmdA3(value);
 }
 
+/** CCC: solo quita espacios/guiones; preserva ceros a la izquierda. */
+export function normalizeCcc(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return String(value).trim().replace(/[\s-]/g, '');
+}
+
 /** S/N; default S. */
 export function normalizeIndIncorpora(value) {
   return normalizeIndIncorporaA3(value);
@@ -86,6 +95,10 @@ export function normalizeRecordForSepe(record) {
   }
 
   out.IND_INCORPORA_ACTIVIDAD = normalizeIndIncorpora(out.IND_INCORPORA_ACTIVIDAD);
+
+  if (!isEmpty(out.CCC)) {
+    out.CCC = normalizeCcc(out.CCC);
+  }
 
   if (isEmpty(out.NUMERO_SEGURIDAD_SOCIAL)) {
     out.NUMERO_SEGURIDAD_SOCIAL = '';
