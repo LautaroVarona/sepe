@@ -149,18 +149,164 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 0.4rem 0.5rem;
+  padding: 0;
   overflow: hidden;
+  border-color: #c5d4e8;
+  box-shadow: 0 1px 3px rgba(15, 45, 90, 0.06);
 }
 
-.records-toolbar {
+.records-workspace__header {
+  flex-shrink: 0;
+  padding: 0.55rem 0.65rem 0.45rem;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.records-part-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.records-nav-btn {
+  min-width: 6.5rem;
+  white-space: nowrap;
+}
+
+.records-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.records-part-bar__center {
+  text-align: center;
+  min-width: 0;
+  padding: 0 0.25rem;
+}
+
+.records-part-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.records-chunk-hint {
+  font-size: 0.68rem;
+  margin-top: 0.1rem;
+  display: block;
+}
+
+.records-actions-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem;
-  margin-bottom: 0.35rem;
-  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.records-export-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.records-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.records-jump__select {
+  font: inherit;
+  font-size: 0.68rem;
+  padding: 0.22rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  max-width: 11rem;
+}
+
+.records-filters--pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  padding: 0.15rem;
+  background: #e8eef5;
+  border-radius: 8px;
+  border: 1px solid #d0dbe8;
+}
+
+.records-filters--pills .records-filters__label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  padding: 0 0.45rem 0 0.35rem;
+}
+
+.records-filters--pills .records-filter {
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.28rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.records-filters--pills .records-filter:hover {
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.records-filters--pills .records-filter--active {
+  background: #fff;
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 45, 90, 0.08);
+}
+
+.records-filters--pills .records-filter[data-records-filter="complete"].records-filter--active {
+  color: #166534;
+}
+
+.records-filters--pills .records-filter[data-records-filter="incomplete"].records-filter--active {
+  color: #9a3412;
+}
+
+.records-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0.45rem 0.5rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fafbfc;
+  box-shadow: inset 0 1px 2px rgba(15, 45, 90, 0.04);
+}
+
+.records-table-wrap > .muted {
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.records-toolbar {
+  display: none;
 }
 
 .records-toolbar__left {
@@ -1063,15 +1209,22 @@ body {
 
 .records-filter--active {
   font-weight: 600;
-  text-decoration: underline;
 }
 
 .data-table--records tbody tr.record-row--ok {
-  background: #e8f5e9;
+  background: #ecfdf3;
 }
 
 .data-table--records tbody tr.record-row--incomplete {
-  background: #fff3e0;
+  background: #fff7ed;
+}
+
+.data-table--records tbody tr.record-row--ok:hover {
+  background: #d1fae5;
+}
+
+.data-table--records tbody tr.record-row--incomplete:hover {
+  background: #ffedd5;
 }
 
 .trabajadores-filter--active {
@@ -1262,5 +1415,29 @@ body {
   .form-grid--wide,
   .options__grid {
     grid-template-columns: 1fr;
+  }
+
+  .records-part-bar {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .records-nav-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .records-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .records-export-group {
+    margin-left: 0;
+    justify-content: stretch;
+  }
+
+  .records-export-group .btn {
+    flex: 1;
   }
 }

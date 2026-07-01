@@ -211,6 +211,68 @@ function recordMatchesFilter(row) {
   return true;
 }
 
+function getExportButtonLabels() {
+  if (recordsFilter === 'complete') {
+    return {
+      one: 'Exportar correctos',
+      all: 'Exportar todos los correctos',
+    };
+  }
+  if (recordsFilter === 'incomplete') {
+    return {
+      one: 'Exportar incompletos',
+      all: 'Exportar todos los incompletos',
+    };
+  }
+  return {
+    one: 'Exportar este XML',
+    all: 'Exportar todos los XML',
+  };
+}
+
+function setActiveXmlPart(index) {
+  if (!generatedFiles.length) return;
+  const next = Math.max(0, Math.min(index, generatedFiles.length - 1));
+  activeFileIndex = next;
+  const select = document.getElementById('xmlFileSelect');
+  if (select) select.value = String(next);
+  renderRecordsTable();
+  renderXmlPreview(next);
+}
+
+function updateRecordsToolbarUI() {
+  const prev = document.getElementById('xmlPartPrev');
+  const next = document.getElementById('xmlPartNext');
+  const title = document.getElementById('recordsPartTitle');
+  const exportOne = document.getElementById('exportOneBtn');
+  const exportAll = document.getElementById('exportAllBtn');
+
+  const total = generatedFiles.length;
+  const file = generatedFiles[activeFileIndex];
+  const labels = getExportButtonLabels();
+
+  if (prev) prev.disabled = !total || activeFileIndex <= 0;
+  if (next) next.disabled = !total || activeFileIndex >= total - 1;
+
+  if (title) {
+    if (!file) {
+      title.textContent = 'Sin partes XML';
+      title.removeAttribute('title');
+    } else if (total > 1) {
+      const part = file.part ?? activeFileIndex + 1;
+      const totalParts = file.totalParts ?? total;
+      title.textContent = `Parte ${part} de ${totalParts} · ${file.count} reg.`;
+      title.title = file.name;
+    } else {
+      title.textContent = `${file.name} · ${file.count} reg.`;
+      title.title = '';
+    }
+  }
+
+  if (exportOne) exportOne.textContent = labels.one;
+  if (exportAll) exportAll.textContent = labels.all;
+}
+
 function recordsToApiPayload(records) {
   return records.map((r) => ({
     excelRowNumber: r.row,
@@ -335,6 +397,8 @@ function renderRecordsTable() {
     input.addEventListener('change', onRecordCellChange);
     input.addEventListener('blur', onRecordCellChange);
   });
+
+  updateRecordsToolbarUI();
 }
 
 function onRecordCellChange(e) {
@@ -404,11 +468,9 @@ function applyGenerationPayload(data, { scroll = true, resetFilter = scroll } = 
           `<option value="${i}">${escapeHtml(f.name)} (${f.count} reg.)</option>`,
       )
       .join('');
-    select.value = String(Math.min(activeFileIndex, data.files.length - 1));
   }
 
-  renderRecordsTable();
-  renderXmlPreview(Number(select?.value ?? 0));
+  setActiveXmlPart(Math.min(activeFileIndex, data.files.length - 1));
   if (scroll) resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
@@ -610,14 +672,25 @@ function showGenerateResult(data) {
   exportBaseName = data.baseName ?? exportBaseName;
   applyGenerationPayload(data);
 
+  bindRecordsWorkspaceControls();
+}
+
+function bindRecordsWorkspaceControls() {
   const select = document.getElementById('xmlFileSelect');
   if (select && !select.dataset.bound) {
     select.dataset.bound = '1';
-    select.addEventListener('change', () => {
-      activeFileIndex = Number(select.value);
-      renderRecordsTable();
-      renderXmlPreview(activeFileIndex);
-    });
+    select.addEventListener('change', () => setActiveXmlPart(Number(select.value)));
+  }
+
+  const prevBtn = document.getElementById('xmlPartPrev');
+  const nextBtn = document.getElementById('xmlPartNext');
+  if (prevBtn && !prevBtn.dataset.bound) {
+    prevBtn.dataset.bound = '1';
+    prevBtn.addEventListener('click', () => setActiveXmlPart(activeFileIndex - 1));
+  }
+  if (nextBtn && !nextBtn.dataset.bound) {
+    nextBtn.dataset.bound = '1';
+    nextBtn.addEventListener('click', () => setActiveXmlPart(activeFileIndex + 1));
   }
 
   const exportOneBtn = document.getElementById('exportOneBtn');
@@ -1264,4 +1337,5 @@ async function checkServerVersion() {
 checkServerVersion();
 initAppStore().then(() => {
   loadEmpresasForSelects();
+  bindRecordsWorkspaceControls();
 });

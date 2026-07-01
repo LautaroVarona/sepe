@@ -85,25 +85,38 @@
         <div id="resultArea" class="generar-results" hidden>
           <div id="resultSummary" class="card card--compact"></div>
           <div id="recordsWorkspace" class="card records-workspace" hidden>
-            <div class="records-toolbar">
-              <div class="records-toolbar__left">
-                <label for="xmlFileSelect" class="records-toolbar__label">Parte XML</label>
-                <select id="xmlFileSelect" class="records-toolbar__select"></select>
-                <div id="recordsFilters" class="records-filters">
-                  <span class="records-filters__label muted">Filtrar:</span>
-                  <button type="button" class="btn btn--ghost btn--sm records-filter records-filter--active" data-records-filter="all">Todos</button>
-                  <button type="button" class="btn btn--ghost btn--sm records-filter" data-records-filter="complete">Correctos</button>
-                  <button type="button" class="btn btn--ghost btn--sm records-filter" data-records-filter="incomplete">Incompletos</button>
+            <div class="records-workspace__header">
+              <div class="records-part-bar">
+                <button type="button" id="xmlPartPrev" class="btn btn--secondary btn--sm records-nav-btn" disabled>
+                  ← Anterior
+                </button>
+                <div class="records-part-bar__center">
+                  <div id="recordsPartTitle" class="records-part-title">Parte 1</div>
+                  <div id="recordsChunkHint" class="records-chunk-hint muted"></div>
                 </div>
-                <span id="recordsChunkHint" class="muted"></span>
+                <button type="button" id="xmlPartNext" class="btn btn--secondary btn--sm records-nav-btn">
+                  Siguiente →
+                </button>
               </div>
-              <div class="records-toolbar__right">
-                <button type="button" id="exportOneBtn" class="btn btn--secondary btn--sm">
-                  Exportar este
-                </button>
-                <button type="button" id="exportAllBtn" class="btn btn--primary btn--sm">
-                  Exportar todos
-                </button>
+              <div class="records-actions-row">
+                <div id="recordsFilters" class="records-filters records-filters--pills" hidden>
+                  <span class="records-filters__label">Filtrar</span>
+                  <button type="button" class="records-filter records-filter--active" data-records-filter="all">Todos</button>
+                  <button type="button" class="records-filter" data-records-filter="complete">Correctos</button>
+                  <button type="button" class="records-filter" data-records-filter="incomplete">Incompletos</button>
+                </div>
+                <div class="records-export-group">
+                  <label class="records-jump" for="xmlFileSelect">
+                    <span class="records-jump__label">Ir a</span>
+                    <select id="xmlFileSelect" class="records-jump__select" title="Ir a una parte concreta"></select>
+                  </label>
+                  <button type="button" id="exportOneBtn" class="btn btn--secondary btn--sm">
+                    Exportar este XML
+                  </button>
+                  <button type="button" id="exportAllBtn" class="btn btn--primary btn--sm">
+                    Exportar todos los XML
+                  </button>
+                </div>
               </div>
             </div>
             <div id="recordsTableWrap" class="records-table-wrap"></div>
