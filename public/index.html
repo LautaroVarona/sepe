@@ -89,6 +89,12 @@
               <div class="records-toolbar__left">
                 <label for="xmlFileSelect" class="records-toolbar__label">Parte XML</label>
                 <select id="xmlFileSelect" class="records-toolbar__select"></select>
+                <div id="recordsFilters" class="records-filters">
+                  <span class="records-filters__label muted">Filtrar:</span>
+                  <button type="button" class="btn btn--ghost btn--sm records-filter records-filter--active" data-records-filter="all">Todos</button>
+                  <button type="button" class="btn btn--ghost btn--sm records-filter" data-records-filter="complete">Correctos</button>
+                  <button type="button" class="btn btn--ghost btn--sm records-filter" data-records-filter="incomplete">Incompletos</button>
+                </div>
                 <span id="recordsChunkHint" class="muted"></span>
               </div>
               <div class="records-toolbar__right">

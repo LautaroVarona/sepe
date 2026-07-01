@@ -121,6 +121,7 @@ let generatedFiles = [];
 let processedRecords = [];
 let exportBaseName = 'LLAMAMIENTOS';
 let activeFileIndex = 0;
+let recordsFilter = 'all';
 let rebuildTimer = null;
 
 const TABLE_FIELDS = [
@@ -204,17 +205,38 @@ function isFieldMissing(record, field) {
   return v === undefined || v === null || String(v).trim() === '';
 }
 
+function recordMatchesFilter(row) {
+  if (recordsFilter === 'complete') return row.complete === true;
+  if (recordsFilter === 'incomplete') return row.complete !== true;
+  return true;
+}
+
+function getRecordsTableRows() {
+  if (recordsFilter === 'all') {
+    const { start, count } = getActiveChunk();
+    return processedRecords.slice(start, start + count).map((row, i) => ({
+      row,
+      globalIdx: start + i,
+    }));
+  }
+  return processedRecords
+    .map((row, globalIdx) => ({ row, globalIdx }))
+    .filter(({ row }) => recordMatchesFilter(row));
+}
+
 function renderRecordsTable() {
   const wrap = document.getElementById('recordsTableWrap');
   const workspace = document.getElementById('recordsWorkspace');
+  const filtersEl = document.getElementById('recordsFilters');
   if (!wrap || !processedRecords.length) {
     if (workspace) workspace.hidden = true;
+    if (filtersEl) filtersEl.hidden = true;
     return;
   }
   workspace.hidden = false;
+  if (filtersEl) filtersEl.hidden = false;
 
-  const { start, count } = getActiveChunk();
-  const slice = processedRecords.slice(start, start + count);
+  const tableRows = getRecordsTableRows();
 
   const thead = `
     <thead><tr>
@@ -224,9 +246,8 @@ function renderRecordsTable() {
       ${TABLE_FIELDS.map((f) => `<th class="${f.short ? 'col-short' : ''}">${escapeHtml(f.label)}</th>`).join('')}
     </tr></thead>`;
 
-  const tbody = slice
-    .map((row, i) => {
-      const globalIdx = start + i;
+  const tbody = tableRows
+    .map(({ row, globalIdx }) => {
       const rec = row.record ?? {};
       const estado = row.complete
         ? '<span class="badge badge--ok">OK</span>'
@@ -251,7 +272,7 @@ function renderRecordsTable() {
         ? `<span class="badge badge--pair" title="${escapeHtml(row.movementPair)}">${row.movementPair === 'alta+baja' ? 'Alta+Baja' : escapeHtml(row.movementPair)}</span>`
         : '';
 
-      return `<tr data-global-idx="${globalIdx}">
+      return `<tr data-global-idx="${globalIdx}" class="${row.complete ? 'record-row--ok' : 'record-row--incomplete'}">
         <td class="col-row">${escapeHtml(filaLabel)} ${pairBadge}</td>
         <td class="col-estado">${estado}</td>
         <td class="col-match">${match}</td>
@@ -260,11 +281,21 @@ function renderRecordsTable() {
     })
     .join('');
 
-  wrap.innerHTML = `<table class="data-table data-table--records">${thead}<tbody>${tbody}</tbody></table>`;
+  wrap.innerHTML = tableRows.length
+    ? `<table class="data-table data-table--records">${thead}<tbody>${tbody}</tbody></table>`
+    : '<p class="muted">Ningún registro coincide con este filtro.</p>';
 
   const hint = document.getElementById('recordsChunkHint');
   if (hint) {
-    hint.textContent = `Mostrando ${slice.length} de ${processedRecords.length} registros`;
+    if (recordsFilter === 'all') {
+      const { start, count } = getActiveChunk();
+      const shown = Math.min(count, processedRecords.length - start);
+      hint.textContent = `Mostrando ${shown} de ${processedRecords.length} registros`;
+    } else {
+      const total = processedRecords.filter(recordMatchesFilter).length;
+      const label = recordsFilter === 'complete' ? 'correctos' : 'incompletos';
+      hint.textContent = `${total} ${label} de ${processedRecords.length} registros`;
+    }
   }
 
   wrap.querySelectorAll('.record-cell').forEach((input) => {
@@ -319,6 +350,11 @@ async function rebuildXmlFromRecords() {
 function applyGenerationPayload(data, { scroll = true } = {}) {
   generatedFiles = data.files;
   exportBaseName = data.baseName ?? exportBaseName;
+  recordsFilter = 'all';
+  const recordsFilters = document.getElementById('recordsFilters');
+  recordsFilters?.querySelectorAll('[data-records-filter]').forEach((b) => {
+    b.classList.toggle('records-filter--active', b.dataset.recordsFilter === 'all');
+  });
   processedRecords = (data.records ?? []).map((r) => ({
     row: r.row,
     sourceRows: r.sourceRows,
@@ -520,6 +556,20 @@ function showGenerateResult(data) {
   if (exportAllBtn && !exportAllBtn.dataset.bound) {
     exportAllBtn.dataset.bound = '1';
     exportAllBtn.addEventListener('click', exportAllXml);
+  }
+
+  const recordsFilters = document.getElementById('recordsFilters');
+  if (recordsFilters && !recordsFilters.dataset.bound) {
+    recordsFilters.dataset.bound = '1';
+    recordsFilters.querySelectorAll('[data-records-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        recordsFilter = btn.dataset.recordsFilter ?? 'all';
+        recordsFilters.querySelectorAll('[data-records-filter]').forEach((b) => {
+          b.classList.toggle('records-filter--active', b === btn);
+        });
+        renderRecordsTable();
+      });
+    });
   }
 }
 

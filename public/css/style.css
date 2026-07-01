@@ -1050,6 +1050,30 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.records-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.records-filters__label {
+  font-size: 0.68rem;
+}
+
+.records-filter--active {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.data-table--records tbody tr.record-row--ok {
+  background: #e8f5e9;
+}
+
+.data-table--records tbody tr.record-row--incomplete {
+  background: #fff3e0;
+}
+
 .trabajadores-filter--active {
   font-weight: 600;
   text-decoration: underline;
