@@ -1,6 +1,7 @@
 import XLSX from 'xlsx';
 import { ALL_FIELDS, normalizeHeaderName } from '../config/mapping.js';
 import { normId, normNss, normText } from './trabajadorIndex.js';
+import { normalizeNieIdentificador } from './cleanLlamamientoPipeline.js';
 
 const COL = {
   MOVIMIENTO: 'TIPO_DE_MOVIMIENTO',
@@ -72,9 +73,7 @@ function parseMovementType(value) {
 }
 
 function normalizeSaltraDni(value) {
-  let d = normId(value);
-  if (/^0\d{8}[A-Z]$/.test(d)) d = d.slice(1);
-  return d;
+  return normalizeNieIdentificador(value);
 }
 
 function splitNombreCompleto(nombre) {

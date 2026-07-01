@@ -2,6 +2,8 @@
  * Índice y búsqueda de trabajadores guardados para completar filas del Excel.
  */
 
+import { normalizeNieIdentificador } from './cleanLlamamientoPipeline.js';
+
 export function normText(value) {
   return String(value ?? '')
     .trim()
@@ -54,7 +56,7 @@ export function normalizeExcelRecordForMatch(record) {
     if (!isEmpty(out[f])) out[f] = normText(out[f]);
   }
   if (!isEmpty(out.IDENTIFICADORPFISICA)) {
-    out.IDENTIFICADORPFISICA = normId(out.IDENTIFICADORPFISICA);
+    out.IDENTIFICADORPFISICA = normalizeNieIdentificador(out.IDENTIFICADORPFISICA);
   }
   return out;
 }

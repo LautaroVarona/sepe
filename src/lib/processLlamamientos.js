@@ -21,6 +21,7 @@ import { buildXmlFilesFromRows } from './xmlFilesFromRows.js';
 import { buildWarningSummary } from './warningSummary.js';
 import { formatExcelRowLabel } from './saltraLlamamientosReader.js';
 import { applyUsoLibreEmpresaToRecord } from './buildUsoLibreEmpresa.js';
+import { cleanLlamamientoRecord } from './cleanLlamamientoPipeline.js';
 
 function sanitizeBaseName(name) {
   return name.replace(/[^\w.-]/g, '_') || 'LLAMAMIENTOS';
@@ -152,7 +153,12 @@ export function processLlamamientos(source, options = {}) {
 
     if (trabajador) matchedFromTrabajador += 1;
 
-    const normalized = normalizeRecordForSepe(merged);
+    const cleaned = cleanLlamamientoRecord(merged);
+    for (const w of cleaned.warnings) {
+      allWarnings.push(`Fila ${rowLabel}: ${w}`);
+    }
+
+    const normalized = normalizeRecordForSepe(cleaned.record);
     for (const w of normalized.warnings) {
       allWarnings.push(`Fila ${rowLabel}: ${w}`);
     }
@@ -277,4 +283,4 @@ export function rebuildLlamamientosFromRows(processedRows, baseName) {
     completeCount: recordCount - incompleteCount,
   };
 }
-
+

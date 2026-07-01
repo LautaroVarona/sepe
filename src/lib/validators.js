@@ -176,7 +176,10 @@ export function validateRecordSoft(record, rowNumber) {
     out.FECHA_FIN !== MISSING_PLACEHOLDER &&
     out.FECHA_INICIO > out.FECHA_FIN
   ) {
-    warnings.push(`Fila ${rowNumber}: FECHA_INICIO posterior a FECHA_FIN`);
+    const tmp = out.FECHA_INICIO;
+    out.FECHA_INICIO = out.FECHA_FIN;
+    out.FECHA_FIN = tmp;
+    warnings.push(`Fila ${rowNumber}: FECHA_INICIO posterior a FECHA_FIN (fechas invertidas)`);
   }
 
   const ind = validateIndIncorpora(out.IND_INCORPORA_ACTIVIDAD);
