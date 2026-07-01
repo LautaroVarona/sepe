@@ -102,6 +102,24 @@ export function formatCodigoOcupacion(value: string | undefined): string {
   return digits.padEnd(8, ' ');
 }
 
+/** Clave de transmisión válida: E + 15 dígitos. */
+export function isValidClaveContratoTrans(value: string | undefined | null): boolean {
+  return /^E\d{15}$/.test(String(value ?? '').trim());
+}
+
+/** Prefijo D/E exigido por XSD en IDENTIFICADORPFISICA. */
+export function formatIdentificadorPfisicaForXml(value: string | undefined | null): string {
+  let id = normalizeNieIdentificador(value);
+  if (!id) return '';
+  if (/^[DEUW]/i.test(id)) return id.toUpperCase();
+  if (/^[XYZ]/i.test(id)) return `E${id.toUpperCase()}`;
+  return `D${id.toUpperCase()}`;
+}
+
+export function sanitizeClaveContratoTrans(value: string | undefined | null): string {
+  return isValidClaveContratoTrans(value) ? String(value).trim() : '';
+}
+
 export function splitNombreCompleto(nombre: string): {
   nombre: string;
   primerApellido: string;

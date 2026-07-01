@@ -2,8 +2,10 @@ import type { EmpresaDefaults, GenerateLogEntry, MasterWorker, PairedLlamamiento
 import {
   fixFechaChronology,
   formatCodigoOcupacion,
+  formatIdentificadorPfisicaForXml,
   normalizeNieIdentificador,
   normalizeCcc,
+  sanitizeClaveContratoTrans,
   truncateNameFields,
 } from './normalize.js';
 import { buildUsoLibreEmpresa } from './usolibre.js';
@@ -66,13 +68,14 @@ export function mergeWithMaster(
     });
 
     const cno = formatCodigoOcupacion(pickString(row.cno, master.codigoOcupacion));
-    const contrato = pickString(row.contrato) || MISSING;
+    const contratoRaw = pickString(row.contrato);
+    const contrato = sanitizeClaveContratoTrans(contratoRaw);
     const ccc = normalizeCcc(pickString(empresa.ccc, row.ccc)) || MISSING;
 
     const draft: SepeLlamamientoRecord = {
       CCC: ccc,
       NIF_EMPRESA: empresa.nifEmpresa || MISSING,
-      IDENTIFICADORPFISICA: dni,
+      IDENTIFICADORPFISICA: formatIdentificadorPfisicaForXml(dni),
       NOMBRE: names.NOMBRE,
       PRIMER_APELLIDO: names.PRIMER_APELLIDO,
       SEGUNDO_APELLIDO: names.SEGUNDO_APELLIDO,

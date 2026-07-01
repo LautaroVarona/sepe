@@ -57,14 +57,6 @@ export function validateRequiredLlamamiento({ record, rowLabel, movementPair }) 
     };
   }
 
-  if (isEmpty(record.CLAVE_CONTRATO_TRANS)) {
-    return {
-      ok: false,
-      reason: 'no_contrato',
-      message: `${prefix}falta CLAVE_CONTRATO_TRANS obligatoria`,
-    };
-  }
-
   return { ok: true };
 }
 

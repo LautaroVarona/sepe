@@ -1,6 +1,11 @@
 import { writeFileSync } from 'node:fs';
 import { create } from 'xmlbuilder2';
 import type { GeneratedXmlFile, SepeLlamamientoRecord } from './types.js';
+import {
+  formatCodigoOcupacion,
+  formatIdentificadorPfisicaForXml,
+  isValidClaveContratoTrans,
+} from './normalize.js';
 
 export const XML_ENCODING = 'ISO-8859-1';
 export const MAX_RECORDS_PER_XML = 30;
@@ -60,9 +65,19 @@ type FieldDef =
   | { container: string; fields: FieldDef[] };
 
 function fieldValue(record: SepeLlamamientoRecord, key: keyof SepeLlamamientoRecord): string {
+  if (key === 'IDENTIFICADORPFISICA') {
+    const val = record[key];
+    if (val === undefined || val === null || String(val).trim() === '') return MISSING_PLACEHOLDER;
+    return formatIdentificadorPfisicaForXml(val);
+  }
+  if (key === 'CODIGO_OCUPACION') {
+    const val = record[key];
+    if (val === undefined || val === null || String(val).trim() === '') return MISSING_PLACEHOLDER;
+    return formatCodigoOcupacion(val);
+  }
   const val = record[key];
   if (val === undefined || val === null || String(val).trim() === '') {
-    if (key === 'NUMERO_SEGURIDAD_SOCIAL') return '';
+    if (key === 'NUMERO_SEGURIDAD_SOCIAL' || key === 'CLAVE_CONTRATO_TRANS') return '';
     return MISSING_PLACEHOLDER;
   }
   return String(val).trim();
@@ -76,6 +91,9 @@ function appendFields(
   for (const field of fields) {
     if ('container' in field) {
       appendFields(parent.ele(field.container), field.fields, record);
+      continue;
+    }
+    if (field.key === 'CLAVE_CONTRATO_TRANS' && !isValidClaveContratoTrans(record[field.key])) {
       continue;
     }
     parent.ele(field.xml).txt(fieldValue(record, field.key));

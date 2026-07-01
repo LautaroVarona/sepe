@@ -206,7 +206,10 @@ export function buildXmlExportFileName(baseName, partSuffix = '') {
 export const MISSING_PLACEHOLDER = '???????';
 
 /** Campos que pueden ir vacíos en el XML (sin placeholder). */
-export const XML_OPTIONAL_EMPTY_FIELDS = new Set(['NUMERO_SEGURIDAD_SOCIAL']);
+export const XML_OPTIONAL_EMPTY_FIELDS = new Set([
+  'NUMERO_SEGURIDAD_SOCIAL',
+  'CLAVE_CONTRATO_TRANS',
+]);
 
 export function isEmptyValue(val) {
   return val === undefined || val === null || String(val).trim() === '';

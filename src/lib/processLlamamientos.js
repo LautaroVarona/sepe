@@ -22,6 +22,7 @@ import { buildWarningSummary } from './warningSummary.js';
 import { formatExcelRowLabel } from './saltraLlamamientosReader.js';
 import { applyUsoLibreEmpresaToRecord } from './buildUsoLibreEmpresa.js';
 import { cleanLlamamientoRecord } from './cleanLlamamientoPipeline.js';
+import { applySepeXmlFormatRules } from './sepeXmlFormat.js';
 
 function sanitizeBaseName(name) {
   return name.replace(/[^\w.-]/g, '_') || 'LLAMAMIENTOS';
@@ -173,6 +174,8 @@ export function processLlamamientos(source, options = {}) {
     const validation = validateRecordSoft(usolibre.record, rowLabel);
     allWarnings.push(...validation.warnings);
 
+    const xmlRecord = applySepeXmlFormatRules(validation.record);
+
     if (filledFrom.length > 0) {
       const fromStore = filledFrom.filter(
         (f) => f.source !== 'aviso' && f.field !== '_match',
@@ -185,7 +188,7 @@ export function processLlamamientos(source, options = {}) {
     }
 
     processedRows.push({
-      record: validation.record,
+      record: xmlRecord,
       excelRowNumber: row.excelRowNumber,
       excelRowEnd: row.excelRowEnd,
       sourceRows: row.sourceRows,
@@ -255,7 +258,7 @@ export function rebuildLlamamientosFromRows(processedRows, baseName) {
     const usolibre = applyUsoLibreEmpresaToRecord(normalized.record, { rowLabel });
     const validation = validateRecordSoft(usolibre.record, rowLabel);
     return {
-      record: validation.record,
+      record: applySepeXmlFormatRules(validation.record),
       excelRowNumber: row.excelRowNumber ?? row.row,
       excelRowEnd: row.excelRowEnd,
       sourceRows: row.sourceRows,

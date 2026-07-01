@@ -13,7 +13,7 @@ export function validateNif(value, { allowCif = true } = {}) {
     return { valid: true, normalized: '' };
   }
 
-  const nif = String(value).trim().toUpperCase().replace(/[\s-]/g, '');
+  const nif = String(value).trim().toUpperCase().replace(/[\s-]/g, '').replace(/^[DEUW](?=[0-9XYZ])/i, '');
 
   if (NIF_REGEX.test(nif)) {
     const niePrefix = { X: '0', Y: '1', Z: '2' };

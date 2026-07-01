@@ -7,6 +7,11 @@ import {
   XML_OPTIONAL_EMPTY_FIELDS,
   isEmptyValue,
 } from '../config/mapping.js';
+import {
+  isValidClaveContratoTrans,
+  formatIdentificadorPfisicaForXml,
+  formatCodigoOcupacionForXml,
+} from './sepeXmlFormat.js';
 
 /**
  * Construye el documento XML con estructura exacta SEPE L2606002.
@@ -32,12 +37,29 @@ function appendXmlFields(parent, fields, record) {
       appendXmlFields(parent.ele(field.container), field.fields, record);
       continue;
     }
+    if (field.key === 'CLAVE_CONTRATO_TRANS' && !isValidClaveContratoTrans(record[field.key])) {
+      continue;
+    }
     const value = formatFieldValue(record[field.key], field);
     parent.ele(field.xml).txt(value);
   }
 }
 
 function formatFieldValue(value, field) {
+  if (field.key === 'IDENTIFICADORPFISICA') {
+    if (value === undefined || value === null || isEmptyValue(value)) {
+      return MISSING_PLACEHOLDER;
+    }
+    return formatIdentificadorPfisicaForXml(value);
+  }
+
+  if (field.key === 'CODIGO_OCUPACION') {
+    if (value === undefined || value === null || isEmptyValue(value)) {
+      return MISSING_PLACEHOLDER;
+    }
+    return formatCodigoOcupacionForXml(value);
+  }
+
   if (value === undefined || value === null) {
     if (XML_OPTIONAL_EMPTY_FIELDS.has(field.key)) return '';
     return MISSING_PLACEHOLDER;

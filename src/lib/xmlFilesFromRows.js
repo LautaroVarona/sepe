@@ -4,6 +4,7 @@ import {
   buildXmlExportFileName,
 } from '../config/mapping.js';
 import { buildLlamamientosXml } from './xmlGenerator.js';
+import { applySepeXmlFormatRules } from './sepeXmlFormat.js';
 
 function chunkArray(arr, size) {
   const chunks = [];
@@ -22,7 +23,7 @@ function padPart(num, width) {
  * @param {Array<{ record: object, complete?: boolean }>} processedRows
  */
 export function buildXmlFilesFromRows(processedRows, baseName) {
-  const records = processedRows.map((r) => fillMissingForXml(r.record));
+  const records = processedRows.map((r) => fillMissingForXml(applySepeXmlFormatRules(r.record)));
   const chunks = chunkArray(records, MAX_RECORDS_PER_XML);
   const chunkMeta = chunkArray(processedRows, MAX_RECORDS_PER_XML);
   const totalParts = chunks.length;

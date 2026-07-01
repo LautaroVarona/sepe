@@ -17,7 +17,8 @@ export function normId(val) {
   return String(val ?? '')
     .trim()
     .toUpperCase()
-    .replace(/[\s-]/g, '');
+    .replace(/[\s-]/g, '')
+    .replace(/^[DEUW](?=[0-9XYZ])/i, '');
 }
 
 export function normNss(val) {
