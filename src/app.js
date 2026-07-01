@@ -94,6 +94,38 @@ app.get('/api/fields', (_req, res) => {
   res.json({ fields: ALL_FIELDS });
 });
 
+function resolveStoreFromBody(body) {
+  const raw = body?.store;
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.empresas) && Array.isArray(parsed.trabajadores)) {
+        persistStore({
+          empresas: parsed.empresas,
+          trabajadores: parsed.trabajadores,
+        });
+        return parsed;
+      }
+    } catch {
+      /* usar store en disco */
+    }
+  }
+  return getStore();
+}
+
+app.get('/api/store', (_req, res) => {
+  res.json(getStore());
+});
+
+app.put('/api/store', (req, res) => {
+  const { empresas, trabajadores } = req.body ?? {};
+  if (!Array.isArray(empresas) || !Array.isArray(trabajadores)) {
+    return res.status(400).json({ error: 'store inválido' });
+  }
+  persistStore({ empresas, trabajadores });
+  res.json({ ok: true, ...getStore() });
+});
+
 app.get('/api/empresas', (_req, res) => {
   res.json({ empresas: listEmpresas() });
 });
@@ -157,13 +189,13 @@ app.post('/api/trabajadores/backfill-fechas-excel', upload.single('file'), (req,
       });
     }
     const headerRow = parseInt(req.body.headerRow ?? '1', 10);
-    const db = getStore();
+    const db = resolveStoreFromBody(req.body);
     const result = backfillFechasFromExcelBuffer(req.file.buffer, {
       headerRow: Number.isNaN(headerRow) ? 1 : headerRow,
       store: db,
     });
     persistStore(db);
-    res.json(result);
+    res.json({ ...result, trabajadores: db.trabajadores });
   } catch (err) {
     res.status(422).json({
       ok: false,
@@ -181,13 +213,13 @@ app.post('/api/trabajadores/backfill-codigos-excel', upload.single('file'), (req
       });
     }
     const headerRow = parseInt(req.body.headerRow ?? '1', 10);
-    const db = getStore();
+    const db = resolveStoreFromBody(req.body);
     const result = backfillCodigosFromExcelBuffer(req.file.buffer, {
       headerRow: Number.isNaN(headerRow) ? 1 : headerRow,
       store: db,
     });
     persistStore(db);
-    res.json(result);
+    res.json({ ...result, trabajadores: db.trabajadores });
   } catch (err) {
     res.status(422).json({
       ok: false,
@@ -208,13 +240,14 @@ app.post('/api/trabajadores/import-excel-a3', upload.single('file'), (req, res) 
     const sheetIndex = parseInt(req.body.sheetIndex ?? '0', 10);
     const headerRow = parseInt(req.body.headerRow ?? '1', 10);
     const empresaId = req.body.empresaId?.trim() || null;
+    const store = resolveStoreFromBody(req.body);
 
     const result = bulkImportWorkersFromExcelBuffer(req.file.buffer, {
       sheetIndex: Number.isNaN(sheetIndex) ? 0 : sheetIndex,
       headerRow: Number.isNaN(headerRow) ? 1 : headerRow,
       originalFileName: req.file.originalname,
       empresaId,
-      store: getStore(),
+      store,
     });
 
     if (!result.ok) {
@@ -371,7 +404,7 @@ app.post('/api/generate', upload.single('file'), (req, res) => {
       headerRow: Number.isNaN(headerRow) ? 1 : headerRow,
       prefix,
       originalFileName: req.file.originalname,
-      store: getStore(),
+      store: resolveStoreFromBody(req.body),
       empresaId,
     });
 

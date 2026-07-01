@@ -31,7 +31,9 @@ Ya no se bloquea por columnas faltantes en la cabecera. Se genera el XML y se av
 
 ## Datos persistentes
 
-Se guardan en `data/db.json` (no se sube al repositorio). Haz copia de seguridad de esa carpeta.
+**En el navegador:** empresas y trabajadores se guardan en `localStorage` del mismo equipo/navegador. Sobreviven a recargas de página y despliegues en Vercel.
+
+**En local (servidor Node):** además se sincronizan con `data/db.json` cuando ejecutas `npm run dev`. Haz copia de seguridad de esa carpeta si trabajas en local.
 
 ## Estructura XML
 

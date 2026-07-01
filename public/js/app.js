@@ -10,6 +10,19 @@ import {
   setPendingWorkerMaster,
   clearPendingWorkerMaster,
 } from './worker-import.js';
+import {
+  initAppStore,
+  getAppStore,
+  upsertEmpresa,
+  removeEmpresa,
+  upsertTrabajador,
+  addTrabajadores,
+  removeTrabajador,
+  clearTrabajadores,
+  replaceStore,
+  appendStoreToFormData,
+  pushStoreToServer,
+} from './localDb.js';
 
 // --- Utilidades ---
 function escapeHtml(str) {
@@ -547,6 +560,7 @@ generateBtn.addEventListener('click', async () => {
   const prefix = document.getElementById('prefix').value.trim();
   if (prefix) formData.append('prefix', prefix);
   if (empresaSelect.value) formData.append('empresaId', empresaSelect.value);
+  appendStoreToFormData(formData);
 
   generateBtn.disabled = true;
   const label = generateBtn.textContent;
@@ -574,8 +588,18 @@ const empresasList = document.getElementById('empresasList');
 const empresaCancel = document.getElementById('empresaCancel');
 
 async function loadEmpresasForSelects() {
-  const res = await fetch('/api/empresas');
-  const { empresas } = await res.json();
+  await pushStoreToServer();
+  let empresas = getAppStore().empresas;
+  try {
+    const res = await fetch('/api/empresas');
+    const data = await res.json();
+    if (data.empresas?.length) {
+      empresas = data.empresas;
+      replaceStore({ ...getAppStore(), empresas });
+    }
+  } catch {
+    /* usar copia local */
+  }
 
   empresaSelect.innerHTML =
     '<option value="">— Sin empresa fija —</option>' +
@@ -710,11 +734,15 @@ empresaForm.addEventListener('submit', async (e) => {
   };
   const url = id ? `/api/empresas/${id}` : '/api/empresas';
   const method = id ? 'PUT' : 'POST';
-  await fetch(url, {
+  const res = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (res.ok) {
+    const data = await res.json();
+    if (data.empresa) upsertEmpresa(data.empresa);
+  }
   resetEmpresaForm();
   loadEmpresas();
 });
@@ -728,6 +756,7 @@ initCompanyImport({
 async function deleteEmpresa(id) {
   if (!confirm('¿Eliminar esta empresa?')) return;
   await fetch(`/api/empresas/${id}`, { method: 'DELETE' });
+  removeEmpresa(id);
   loadEmpresas();
 }
 
@@ -818,10 +847,18 @@ function renderTrabajadoresTable(trabajadores) {
 }
 
 async function loadTrabajadores() {
-  await loadEmpresasForSelects();
-  const res = await fetch('/api/trabajadores');
-  const { trabajadores } = await res.json();
-  cachedTrabajadores = trabajadores;
+  await pushStoreToServer();
+  try {
+    const res = await fetch('/api/trabajadores');
+    const { trabajadores, empresas } = await res.json();
+    replaceStore({
+      empresas: empresas ?? getAppStore().empresas,
+      trabajadores: trabajadores ?? [],
+    });
+    cachedTrabajadores = trabajadores ?? [];
+  } catch {
+    cachedTrabajadores = getAppStore().trabajadores;
+  }
   renderTrabajadoresTable(cachedTrabajadores);
 }
 
@@ -989,11 +1026,15 @@ trabajadorForm.addEventListener('submit', async (e) => {
   };
   const url = id ? `/api/trabajadores/${id}` : '/api/trabajadores';
   const method = id ? 'PUT' : 'POST';
-  await fetch(url, {
+  const res = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (res.ok) {
+    const data = await res.json();
+    if (data.trabajador) upsertTrabajador(data.trabajador);
+  }
   resetTrabajadorForm();
   loadTrabajadores();
 });
@@ -1001,6 +1042,7 @@ trabajadorForm.addEventListener('submit', async (e) => {
 initWorkerImport({
   onLoadForm: handleWorkerImportLoad,
   onBulkImportDone(result) {
+    if (result.trabajadores?.length) addTrabajadores(result.trabajadores);
     switchToTrabajadoresTab();
     const n = result.created ?? 0;
     const desc = result.skippedDescartadas ?? 0;
@@ -1012,6 +1054,9 @@ initWorkerImport({
     loadTrabajadores();
   },
   onBackfillFechasDone(result) {
+    if (result.trabajadores?.length) {
+      replaceStore({ ...getAppStore(), trabajadores: result.trabajadores });
+    }
     switchToTrabajadoresTab();
     showTrabajadorImportNotice(
       `Fechas actualizadas en ${result.updated ?? 0} trabajador(es). ` +
@@ -1020,6 +1065,9 @@ initWorkerImport({
     loadTrabajadores();
   },
   onBackfillCodigosDone(result) {
+    if (result.trabajadores?.length) {
+      replaceStore({ ...getAppStore(), trabajadores: result.trabajadores });
+    }
     switchToTrabajadoresTab();
     showTrabajadorImportNotice(
       `Códigos A3 actualizados en ${result.updated ?? 0} trabajador(es). ` +
@@ -1034,6 +1082,7 @@ trabajadorCancel.addEventListener('click', resetTrabajadorForm);
 async function deleteTrabajador(id) {
   if (!confirm('¿Eliminar este trabajador?')) return;
   await fetch(`/api/trabajadores/${id}`, { method: 'DELETE' });
+  removeTrabajador(id);
   loadTrabajadores();
 }
 
@@ -1065,6 +1114,7 @@ async function deleteAllTrabajadores() {
     alert('No se pudieron borrar los trabajadores.');
     return;
   }
+  clearTrabajadores();
   resetTrabajadorForm();
   loadTrabajadores();
 }
@@ -1089,4 +1139,6 @@ async function checkServerVersion() {
 }
 
 checkServerVersion();
-loadEmpresasForSelects();
+initAppStore().then(() => {
+  loadEmpresasForSelects();
+});

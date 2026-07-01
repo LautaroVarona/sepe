@@ -2,6 +2,8 @@
  * Modal de importación de trabajadores A3 (PDF y Excel).
  */
 
+import { appendStoreToFormData } from './localDb.js';
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -752,6 +754,7 @@ export function initWorkerImport({
       const empresaId = document.getElementById('workerExcelEmpresa')?.value?.trim();
       if (empresaId) fd.append('empresaId', empresaId);
       fd.append('headerRow', document.getElementById('workerExcelHeaderRow')?.value ?? '1');
+      appendStoreToFormData(fd);
 
       if (loadBtn) {
         loadBtn.disabled = true;
@@ -918,6 +921,7 @@ export function initWorkerImport({
     const fd = new FormData();
     fd.append('file', lastExcelFile);
     fd.append('headerRow', document.getElementById('workerExcelHeaderRow')?.value ?? '1');
+    appendStoreToFormData(fd);
 
     if (statusEl) statusEl.textContent = 'Actualizando fechas…';
     try {
@@ -954,6 +958,7 @@ export function initWorkerImport({
     const fd = new FormData();
     fd.append('file', lastExcelFile);
     fd.append('headerRow', document.getElementById('workerExcelHeaderRow')?.value ?? '1');
+    appendStoreToFormData(fd);
 
     if (statusEl) statusEl.textContent = 'Actualizando códigos de trabajador…';
     try {
