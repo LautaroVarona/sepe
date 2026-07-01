@@ -211,16 +211,45 @@ function recordMatchesFilter(row) {
   return true;
 }
 
-function getRecordsTableRows() {
-  if (recordsFilter === 'all') {
-    const { start, count } = getActiveChunk();
-    return processedRecords.slice(start, start + count).map((row, i) => ({
-      row,
-      globalIdx: start + i,
-    }));
+function recordsToApiPayload(records) {
+  return records.map((r) => ({
+    excelRowNumber: r.row,
+    sourceRows: r.sourceRows,
+    movementPair: r.movementPair,
+    record: r.record,
+    matchedTrabajador: r.matchedTrabajador,
+    matchedEmpresa: r.matchedEmpresa,
+    matchBy: r.matchBy,
+    filledFrom: r.filledFrom,
+  }));
+}
+
+function getActiveChunkRecords() {
+  const { start, count } = getActiveChunk();
+  return processedRecords.slice(start, start + count);
+}
+
+async function fetchXmlForRecords(records) {
+  const res = await fetch('/api/rebuild-xml', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      baseName: exportBaseName,
+      records: recordsToApiPayload(records),
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok || !data.files?.[0]?.xml) {
+    throw new Error(data.errors?.join(' ') || 'No se pudo generar el XML');
   }
+  return data.files[0].xml;
+}
+
+function getRecordsTableRows() {
+  const { start, count } = getActiveChunk();
   return processedRecords
-    .map((row, globalIdx) => ({ row, globalIdx }))
+    .slice(start, start + count)
+    .map((row, i) => ({ row, globalIdx: start + i }))
     .filter(({ row }) => recordMatchesFilter(row));
 }
 
@@ -287,14 +316,18 @@ function renderRecordsTable() {
 
   const hint = document.getElementById('recordsChunkHint');
   if (hint) {
+    const { start, count } = getActiveChunk();
+    const partSize = Math.min(count, processedRecords.length - start);
+    const shown = tableRows.length;
+    const file = generatedFiles[activeFileIndex];
+    const partLabel =
+      file && generatedFiles.length > 1 ? `Parte ${file.part ?? activeFileIndex + 1}: ` : '';
+
     if (recordsFilter === 'all') {
-      const { start, count } = getActiveChunk();
-      const shown = Math.min(count, processedRecords.length - start);
-      hint.textContent = `Mostrando ${shown} de ${processedRecords.length} registros`;
+      hint.textContent = `${partLabel}${shown} de ${partSize} en esta tanda (${processedRecords.length} total)`;
     } else {
-      const total = processedRecords.filter(recordMatchesFilter).length;
       const label = recordsFilter === 'complete' ? 'correctos' : 'incompletos';
-      hint.textContent = `${total} ${label} de ${processedRecords.length} registros`;
+      hint.textContent = `${partLabel}${shown} ${label} de ${partSize} en esta tanda`;
     }
   }
 
@@ -309,7 +342,9 @@ function onRecordCellChange(e) {
   const idx = Number(input.dataset.idx);
   const field = input.dataset.field;
   if (!processedRecords[idx]) return;
-  processedRecords[idx].record[field] = input.value.trim();
+  const newVal = input.value.trim();
+  if (String(processedRecords[idx].record[field] ?? '').trim() === newVal) return;
+  processedRecords[idx].record[field] = newVal;
   input.closest('td')?.classList.toggle('cell--missing', isFieldMissing(processedRecords[idx].record, field));
   scheduleRebuildXml();
 }
@@ -327,34 +362,27 @@ async function rebuildXmlFromRecords() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         baseName: exportBaseName,
-        records: processedRecords.map((r) => ({
-          excelRowNumber: r.row,
-          sourceRows: r.sourceRows,
-          movementPair: r.movementPair,
-          record: r.record,
-          matchedTrabajador: r.matchedTrabajador,
-          matchedEmpresa: r.matchedEmpresa,
-          matchBy: r.matchBy,
-          filledFrom: r.filledFrom,
-        })),
+        records: recordsToApiPayload(processedRecords),
       }),
     });
     const data = await res.json();
     if (!data.ok) return;
-    applyGenerationPayload(data, { scroll: false });
+    applyGenerationPayload(data, { scroll: false, resetFilter: false });
   } catch {
     /* silencioso: el usuario sigue viendo la tabla */
   }
 }
 
-function applyGenerationPayload(data, { scroll = true } = {}) {
+function applyGenerationPayload(data, { scroll = true, resetFilter = scroll } = {}) {
   generatedFiles = data.files;
   exportBaseName = data.baseName ?? exportBaseName;
-  recordsFilter = 'all';
-  const recordsFilters = document.getElementById('recordsFilters');
-  recordsFilters?.querySelectorAll('[data-records-filter]').forEach((b) => {
-    b.classList.toggle('records-filter--active', b.dataset.recordsFilter === 'all');
-  });
+  if (resetFilter) {
+    recordsFilter = 'all';
+    const recordsFilters = document.getElementById('recordsFilters');
+    recordsFilters?.querySelectorAll('[data-records-filter]').forEach((b) => {
+      b.classList.toggle('records-filter--active', b.dataset.recordsFilter === 'all');
+    });
+  }
   processedRecords = (data.records ?? []).map((r) => ({
     row: r.row,
     sourceRows: r.sourceRows,
@@ -387,7 +415,24 @@ function applyGenerationPayload(data, { scroll = true } = {}) {
 async function exportCurrentXml() {
   const file = generatedFiles[activeFileIndex];
   if (!file) return;
-  await saveXmlFile(file.name, file.xml);
+
+  if (recordsFilter === 'all') {
+    await saveXmlFile(file.name, file.xml);
+    return;
+  }
+
+  const filtered = getActiveChunkRecords().filter(recordMatchesFilter);
+  if (!filtered.length) {
+    alert('No hay registros que coincidan con el filtro en esta tanda.');
+    return;
+  }
+
+  try {
+    const xml = await fetchXmlForRecords(filtered);
+    await saveXmlFile(file.name, xml);
+  } catch (err) {
+    alert(err.message || 'Error al exportar el XML filtrado');
+  }
 }
 
 async function exportAllXml() {
@@ -395,15 +440,43 @@ async function exportAllXml() {
   const folderName = exportBaseName.replace(/[^\w.-]/g, '_') || 'LLAMAMIENTOS';
   const bytesFor = (xml) => latin1ToBytes(xml);
 
+  const filesToExport =
+    recordsFilter === 'all'
+      ? generatedFiles.map((f, i) => ({ name: f.name, xml: f.xml, index: i }))
+      : await (async () => {
+          const out = [];
+          for (let i = 0; i < generatedFiles.length; i++) {
+            const f = generatedFiles[i];
+            const start = f.startRow ?? i * 30;
+            const count = f.count ?? 30;
+            const filtered = processedRecords
+              .slice(start, start + count)
+              .filter(recordMatchesFilter);
+            if (!filtered.length) continue;
+            try {
+              const xml = await fetchXmlForRecords(filtered);
+              out.push({ name: f.name, xml, index: i });
+            } catch {
+              /* omitir parte vacía o con error */
+            }
+          }
+          return out;
+        })();
+
+  if (!filesToExport.length) {
+    alert('No hay registros que coincidan con el filtro para exportar.');
+    return;
+  }
+
   if (window.showDirectoryPicker) {
     try {
       const dir = await window.showDirectoryPicker();
       const sub = await dir.getDirectoryHandle(folderName, { create: true });
-      for (let i = 0; i < generatedFiles.length; i++) {
-        const name = toXmlExportName(`${folderName}_${i + 1}`);
+      for (const item of filesToExport) {
+        const name = toXmlExportName(item.name);
         const handle = await sub.getFileHandle(name, { create: true });
         const writable = await handle.createWritable();
-        await writable.write(bytesFor(generatedFiles[i].xml));
+        await writable.write(bytesFor(item.xml));
         await writable.close();
       }
       return;
@@ -412,9 +485,9 @@ async function exportAllXml() {
     }
   }
 
-  for (let i = 0; i < generatedFiles.length; i++) {
-    const name = toXmlExportName(`${folderName}_${i + 1}`);
-    await saveXmlFile(name, generatedFiles[i].xml);
+  for (const item of filesToExport) {
+    const name = toXmlExportName(item.name);
+    await saveXmlFile(name, item.xml);
     await new Promise((r) => setTimeout(r, 120));
   }
 }
