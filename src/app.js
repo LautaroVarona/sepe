@@ -340,14 +340,23 @@ app.delete('/api/trabajadores/:id', (req, res) => {
 
 app.post('/api/rebuild-xml', (req, res) => {
   try {
-    const { records, baseName } = req.body ?? {};
+    const { records, baseName, singleFile, maxPerFile } = req.body ?? {};
     if (!Array.isArray(records) || records.length === 0) {
       return res.status(400).json({
         ok: false,
         errors: ['No hay registros para reconstruir el XML'],
       });
     }
-    const result = rebuildLlamamientosFromRows(records, baseName || 'LLAMAMIENTOS');
+    const xmlOptions = {};
+    if (singleFile === true) xmlOptions.singleFile = true;
+    else if (maxPerFile !== undefined && maxPerFile !== null) {
+      xmlOptions.maxPerFile = Number(maxPerFile);
+    }
+    const result = rebuildLlamamientosFromRows(
+      records,
+      baseName || 'LLAMAMIENTOS',
+      xmlOptions,
+    );
     res.json({
       ok: true,
       baseName: result.baseName,

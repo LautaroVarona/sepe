@@ -21,11 +21,18 @@ function padPart(num, width) {
 /**
  * Genera ficheros XML a partir de filas ya procesadas (merge + validación).
  * @param {Array<{ record: object, complete?: boolean }>} processedRows
+ * @param {string} baseName
+ * @param {{ maxPerFile?: number, singleFile?: boolean }} [options]
  */
-export function buildXmlFilesFromRows(processedRows, baseName) {
+export function buildXmlFilesFromRows(processedRows, baseName, options = {}) {
+  const chunkSize =
+    options.singleFile || options.maxPerFile === 0
+      ? Math.max(processedRows.length, 1)
+      : options.maxPerFile ?? MAX_RECORDS_PER_XML;
+
   const records = processedRows.map((r) => fillMissingForXml(applySepeXmlFormatRules(r.record)));
-  const chunks = chunkArray(records, MAX_RECORDS_PER_XML);
-  const chunkMeta = chunkArray(processedRows, MAX_RECORDS_PER_XML);
+  const chunks = chunkArray(records, chunkSize);
+  const chunkMeta = chunkArray(processedRows, chunkSize);
   const totalParts = chunks.length;
 
   const files = chunks.map((chunk, i) => {
@@ -40,7 +47,7 @@ export function buildXmlFilesFromRows(processedRows, baseName) {
       count: chunk.length,
       part,
       totalParts,
-      startRow: i * MAX_RECORDS_PER_XML,
+      startRow: i * chunkSize,
       incompleteInFile: rowsInChunk.filter((r) => !r.complete).length,
     };
   });

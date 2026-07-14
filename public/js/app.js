@@ -291,7 +291,24 @@ function getActiveChunkRecords() {
   return processedRecords.slice(start, start + count);
 }
 
-async function fetchXmlForRecords(records) {
+async function fetchXmlForRecords(records, { singleFile = false } = {}) {
+  const res = await fetch('/api/rebuild-xml', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      baseName: exportBaseName,
+      records: recordsToApiPayload(records),
+      singleFile: singleFile || undefined,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok || !data.files?.[0]?.xml) {
+    throw new Error(data.errors?.join(' ') || 'No se pudo generar el XML');
+  }
+  return data.files[0].xml;
+}
+
+async function fetchXmlFilesForRecords(records) {
   const res = await fetch('/api/rebuild-xml', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -301,10 +318,77 @@ async function fetchXmlForRecords(records) {
     }),
   });
   const data = await res.json();
-  if (!data.ok || !data.files?.[0]?.xml) {
+  if (!data.ok || !data.files?.length) {
     throw new Error(data.errors?.join(' ') || 'No se pudo generar el XML');
   }
-  return data.files[0].xml;
+  return data.files;
+}
+
+function getAllExportRecords() {
+  if (recordsFilter === 'all') return processedRecords;
+  return processedRecords.filter(recordMatchesFilter);
+}
+
+function getSingleExportFileName() {
+  const stem = exportBaseName.replace(/[^\w.-]/g, '_') || 'LLAMAMIENTOS';
+  if (recordsFilter === 'complete') return `${stem}_correctos.XML`;
+  if (recordsFilter === 'incomplete') return `${stem}_incompletos.XML`;
+  return `${stem}.XML`;
+}
+
+function promptExportAllMode({ recordCount, fileCount }) {
+  const dialog = document.getElementById('exportAllDialog');
+  const lead = document.getElementById('exportAllDialogLead');
+  const cancelBtn = document.getElementById('exportAllDialogCancel');
+  if (!dialog) return Promise.resolve('split');
+
+  const filterLabel =
+    recordsFilter === 'complete'
+      ? 'correctos'
+      : recordsFilter === 'incomplete'
+        ? 'incompletos'
+        : 'todos';
+
+  if (lead) {
+    lead.textContent =
+      recordsFilter === 'all'
+        ? `${recordCount} registros en ${fileCount} archivo(s) de hasta 30.`
+        : `${recordCount} registros ${filterLabel} (de ${processedRecords.length} en total).`;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (mode) => {
+      if (settled) return;
+      settled = true;
+      dialog.querySelectorAll('[data-export-mode]').forEach((btn) => {
+        btn.removeEventListener('click', onChoice);
+      });
+      cancelBtn?.removeEventListener('click', onCancel);
+      dialog.removeEventListener('cancel', onDialogCancel);
+      dialog.close();
+      resolve(mode);
+    };
+
+    const onChoice = (e) => {
+      const mode = e.currentTarget.dataset.exportMode;
+      if (mode) finish(mode);
+    };
+
+    const onCancel = () => finish(null);
+    const onDialogCancel = (e) => {
+      e.preventDefault();
+      onCancel();
+    };
+
+    dialog.querySelectorAll('[data-export-mode]').forEach((btn) => {
+      btn.addEventListener('click', onChoice);
+    });
+    cancelBtn?.addEventListener('click', onCancel);
+    dialog.addEventListener('cancel', onDialogCancel);
+
+    dialog.showModal();
+  });
 }
 
 function getRecordsTableRows() {
@@ -499,30 +583,48 @@ async function exportCurrentXml() {
 
 async function exportAllXml() {
   if (!generatedFiles.length) return;
+
+  const exportRecords = getAllExportRecords();
+  if (!exportRecords.length) {
+    alert('No hay registros que coincidan con el filtro para exportar.');
+    return;
+  }
+
+  const estimatedFileCount =
+    recordsFilter === 'all'
+      ? generatedFiles.length
+      : Math.ceil(exportRecords.length / 30) || 1;
+
+  const mode = await promptExportAllMode({
+    recordCount: exportRecords.length,
+    fileCount: estimatedFileCount,
+  });
+  if (!mode) return;
+
   const folderName = exportBaseName.replace(/[^\w.-]/g, '_') || 'LLAMAMIENTOS';
   const bytesFor = (xml) => latin1ToBytes(xml);
+
+  if (mode === 'single') {
+    try {
+      const xml = await fetchXmlForRecords(exportRecords, { singleFile: true });
+      await saveXmlFile(getSingleExportFileName(), xml);
+    } catch (err) {
+      alert(err.message || 'Error al exportar el XML unificado');
+    }
+    return;
+  }
 
   const filesToExport =
     recordsFilter === 'all'
       ? generatedFiles.map((f, i) => ({ name: f.name, xml: f.xml, index: i }))
       : await (async () => {
-          const out = [];
-          for (let i = 0; i < generatedFiles.length; i++) {
-            const f = generatedFiles[i];
-            const start = f.startRow ?? i * 30;
-            const count = f.count ?? 30;
-            const filtered = processedRecords
-              .slice(start, start + count)
-              .filter(recordMatchesFilter);
-            if (!filtered.length) continue;
-            try {
-              const xml = await fetchXmlForRecords(filtered);
-              out.push({ name: f.name, xml, index: i });
-            } catch {
-              /* omitir parte vacía o con error */
-            }
+          try {
+            const rebuilt = await fetchXmlFilesForRecords(exportRecords);
+            return rebuilt.map((f, i) => ({ name: f.name, xml: f.xml, index: i }));
+          } catch (err) {
+            alert(err.message || 'Error al generar los XML filtrados');
+            return [];
           }
-          return out;
         })();
 
   if (!filesToExport.length) {

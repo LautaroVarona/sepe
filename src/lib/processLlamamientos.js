@@ -247,7 +247,7 @@ export function processLlamamientos(source, options = {}) {
   };
 }
 
-export function rebuildLlamamientosFromRows(processedRows, baseName) {
+export function rebuildLlamamientosFromRows(processedRows, baseName, options = {}) {
   const sanitized = sanitizeBaseName(baseName);
   const rows = processedRows.map((row, i) => {
     const rowLabel = formatExcelRowLabel({
@@ -273,7 +273,7 @@ export function rebuildLlamamientosFromRows(processedRows, baseName) {
   });
 
   const incompleteCount = rows.filter((r) => !r.complete).length;
-  const { files, recordCount } = buildXmlFilesFromRows(rows, sanitized);
+  const { files, recordCount } = buildXmlFilesFromRows(rows, sanitized, options);
 
   return {
     ok: true,

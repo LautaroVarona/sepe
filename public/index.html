@@ -353,6 +353,32 @@
       </div>
     </dialog>
 
+    <dialog id="exportAllDialog" class="import-dialog export-dialog">
+      <div class="import-dialog__inner">
+        <h2 class="import-dialog__title">¿Cómo exportar?</h2>
+        <p id="exportAllDialogLead" class="import-dialog__lead muted"></p>
+        <div class="export-dialog__choices">
+          <button type="button" class="export-dialog__choice" data-export-mode="split">
+            <span class="export-dialog__choice-title">Varios archivos</span>
+            <span class="export-dialog__choice-desc">
+              Un XML por cada tanda de 30 registros (formato habitual para subir al SEPE).
+            </span>
+          </button>
+          <button type="button" class="export-dialog__choice" data-export-mode="single">
+            <span class="export-dialog__choice-title">Todos juntos</span>
+            <span class="export-dialog__choice-desc">
+              Un único XML con todos los registros seleccionados.
+            </span>
+          </button>
+        </div>
+        <div class="import-dialog__actions">
+          <button type="button" id="exportAllDialogCancel" class="btn btn--ghost btn--sm">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <dialog id="companyImportDialog" class="import-dialog">
       <div class="import-dialog__inner">
         <h2 class="import-dialog__title">Importar ficha empresa (A3)</h2>
