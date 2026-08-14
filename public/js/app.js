@@ -1443,17 +1443,26 @@ if (trabajadoresDeleteAll) {
 }
 
 async function checkServerVersion() {
+  const clientVersion = window.SEPEIMP_ASSET_VERSION || '2.5.2';
   try {
     const res = await fetch('/api/health', { cache: 'no-store' });
     const h = await res.json();
     document.getElementById('appVersion').textContent = `v${h.version}`;
+    if (h.version && h.version !== clientVersion) {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get('_v') !== h.version) {
+        u.searchParams.set('_v', h.version);
+        window.location.replace(u.toString());
+      }
+      return;
+    }
     if (!h.incompleteXml) {
       showGenerateError([
         'Servidor desactualizado. Cierra la terminal antigua y ejecuta de nuevo: npm run dev',
       ]);
     }
   } catch {
-    document.getElementById('appVersion').textContent = 'sin conexión';
+    document.getElementById('appVersion').textContent = `v${clientVersion}`;
   }
 }
 

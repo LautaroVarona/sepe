@@ -28,8 +28,8 @@ import { backfillCodigosFromExcelBuffer } from './lib/services/worker-codigo-bac
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-/** Cambia si ves errores antiguos tipo "Faltan columnas obligatorias". */
-export const APP_VERSION = '2.5.1';
+/** Cambia al desplegar para forzar recarga de JS/CSS en otros ordenadores. */
+export const APP_VERSION = '2.5.2';
 
 /** Límite del campo FormData `store` (JSON del maestro local); crece con el volumen de datos. */
 const STORE_FIELD_MAX = 20 * 1024 * 1024;
@@ -78,11 +78,15 @@ const publicDir = process.env.VERCEL
 
 app.use(express.json({ limit: '20mb' }));
 app.use((_req, res, next) => {
-  res.set('Cache-Control', 'no-store');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('CDN-Cache-Control', 'no-store');
+  res.set('Vercel-CDN-Cache-Control', 'no-store');
   res.set('X-SEPEIMP-Version', APP_VERSION);
   next();
 });
-app.use(express.static(publicDir, { etag: false, maxAge: 0 }));
+app.use(express.static(publicDir, { etag: false, lastModified: false, maxAge: 0 }));
 
 app.get('/api/health', (_req, res) => {
   res.json({

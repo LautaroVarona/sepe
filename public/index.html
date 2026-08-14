@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>SEPEIMP — Llamamientos XML</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -10,7 +13,22 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/style.css?v=2.5.2" />
+    <script>
+      window.SEPEIMP_ASSET_VERSION = '2.5.2';
+      (function () {
+        var v = '2.5.2';
+        var key = 'sepeimp-forced-v';
+        try {
+          if (localStorage.getItem(key) === v) return;
+          localStorage.setItem(key, v);
+          var u = new URL(window.location.href);
+          if (u.searchParams.get('_v') === v) return;
+          u.searchParams.set('_v', v);
+          window.location.replace(u.toString());
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div class="app">
@@ -407,6 +425,16 @@
       </div>
     </dialog>
 
-    <script src="/js/app.js" type="module"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "/js/app.js": "/js/app.js?v=2.5.2",
+          "/js/localDb.js": "/js/localDb.js?v=2.5.2",
+          "/js/worker-import.js": "/js/worker-import.js?v=2.5.2",
+          "/js/company-import.js": "/js/company-import.js?v=2.5.2"
+        }
+      }
+    </script>
+    <script src="/js/app.js?v=2.5.2" type="module"></script>
   </body>
 </html>
