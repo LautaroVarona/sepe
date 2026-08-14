@@ -161,17 +161,15 @@ export function findTrabajadorInIndex(index, record) {
     return { trabajador: index.byDni.get(dni), matchBy: 'dni' };
   }
 
-  if (!codigo && !dni) {
-    const nss = normNss(record.NUMERO_SEGURIDAD_SOCIAL);
-    if (nss && index.byNss.has(nss)) {
-      return { trabajador: index.byNss.get(nss), matchBy: 'nss' };
-    }
+  const nss = normNss(record.NUMERO_SEGURIDAD_SOCIAL);
+  if (nss && index.byNss.has(nss)) {
+    return { trabajador: index.byNss.get(nss), matchBy: 'nss' };
+  }
 
-    for (const key of excelNameKeys(record)) {
-      const candidates = index.byName.get(key);
-      const picked = pickUnique(candidates);
-      if (picked) return { trabajador: picked, matchBy: 'nombre' };
-    }
+  for (const key of excelNameKeys(record)) {
+    const candidates = index.byName.get(key);
+    const picked = pickUnique(candidates);
+    if (picked) return { trabajador: picked, matchBy: 'nombre' };
   }
 
   return { trabajador: null, matchBy: null };

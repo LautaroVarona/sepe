@@ -17,7 +17,7 @@ assert.equal(formatCodigoOcupacionForXml('5120').length, 8);
 
 assert.equal(isValidClaveContratoTrans('300'), false);
 assert.equal(isValidClaveContratoTrans('E462022046454500'), true);
-assert.equal(sanitizeClaveContratoTrans('300'), '');
+assert.equal(sanitizeClaveContratoTrans('300'), '300');
 assert.equal(sanitizeClaveContratoTrans('E462022046454500'), 'E462022046454500');
 
 const formatted = applySepeXmlFormatRules({
@@ -26,7 +26,7 @@ const formatted = applySepeXmlFormatRules({
   CODIGO_OCUPACION: '5120',
 });
 assert.equal(formatted.IDENTIFICADORPFISICA, 'D48714799V');
-assert.equal(formatted.CLAVE_CONTRATO_TRANS, '');
+assert.equal(formatted.CLAVE_CONTRATO_TRANS, '300');
 assert.equal(formatted.CODIGO_OCUPACION, '5120    ');
 
 const xml = buildLlamamientosXml([

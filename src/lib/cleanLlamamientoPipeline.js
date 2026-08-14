@@ -78,6 +78,14 @@ export function cleanLlamamientoRecord(record) {
   out.PRIMER_APELLIDO = names.PRIMER_APELLIDO;
   out.SEGUNDO_APELLIDO = names.SEGUNDO_APELLIDO;
 
+  // Contrato corto por defecto (Saltra suele dejarlo vacío; A3 usa 300 en USOLIBRE).
+  if (isEmpty(out.CLAVE_CONTRATO_TRANS) && isEmpty(out.CODIGO_CONTRATO_CORTO)) {
+    out.CLAVE_CONTRATO_TRANS = '300';
+    out.CODIGO_CONTRATO_CORTO = '300';
+  } else if (isEmpty(out.CODIGO_CONTRATO_CORTO) && /^\d{1,4}$/.test(String(out.CLAVE_CONTRATO_TRANS).trim())) {
+    out.CODIGO_CONTRATO_CORTO = String(out.CLAVE_CONTRATO_TRANS).trim();
+  }
+
   return { record: out, warnings };
 }
 

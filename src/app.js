@@ -31,9 +31,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Cambia si ves errores antiguos tipo "Faltan columnas obligatorias". */
 export const APP_VERSION = '2.5.1';
 
+/** Límite del campo FormData `store` (JSON del maestro local); crece con el volumen de datos. */
+const STORE_FIELD_MAX = 20 * 1024 * 1024;
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024, fieldSize: STORE_FIELD_MAX },
   fileFilter(_req, file, cb) {
     const ok =
       file.mimetype ===
@@ -47,7 +50,7 @@ const upload = multer({
 
 const pdfUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 15 * 1024 * 1024, fieldSize: STORE_FIELD_MAX },
   fileFilter(_req, file, cb) {
     const ok =
       file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
@@ -58,7 +61,7 @@ const pdfUpload = multer({
 
 const workerPdfUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024, fieldSize: STORE_FIELD_MAX },
   fileFilter(_req, file, cb) {
     const ok =
       file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
@@ -73,7 +76,7 @@ const publicDir = process.env.VERCEL
   ? join(process.cwd(), 'public')
   : join(__dirname, '..', 'public');
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '20mb' }));
 app.use((_req, res, next) => {
   res.set('Cache-Control', 'no-store');
   res.set('X-SEPEIMP-Version', APP_VERSION);
@@ -96,6 +99,15 @@ app.get('/api/fields', (_req, res) => {
 
 function resolveStoreFromBody(body) {
   const raw = body?.store;
+  if (raw && typeof raw === 'object') {
+    if (Array.isArray(raw.empresas) && Array.isArray(raw.trabajadores)) {
+      persistStore({
+        empresas: raw.empresas,
+        trabajadores: raw.trabajadores,
+      });
+      return raw;
+    }
+  }
   if (typeof raw === 'string' && raw.trim()) {
     try {
       const parsed = JSON.parse(raw);
@@ -355,7 +367,11 @@ app.post('/api/rebuild-xml', (req, res) => {
     const result = rebuildLlamamientosFromRows(
       records,
       baseName || 'LLAMAMIENTOS',
-      xmlOptions,
+      {
+        ...xmlOptions,
+        store: resolveStoreFromBody(req.body),
+        empresaId: req.body.empresaId?.trim() || null,
+      },
     );
     res.json({
       ok: true,

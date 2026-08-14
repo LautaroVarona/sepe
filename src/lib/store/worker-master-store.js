@@ -121,6 +121,10 @@ function pickMasterFromBody(data) {
     }
     m[key] = val;
   }
+  // Bloque T de USOLIBRE: mismo código de trabajador A3.
+  if (!String(m.a3_worker_token ?? '').trim() && m.codigo_interno_a3) {
+    m.a3_worker_token = m.codigo_interno_a3;
+  }
   return m;
 }
 

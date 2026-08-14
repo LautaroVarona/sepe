@@ -24,11 +24,11 @@
           <span class="muted">Empresas y trabajadores se guardan en este navegador (persisten al recargar).</span>
         </p>
         <nav class="tabs" role="tablist">
+          <button type="button" class="tabs__btn" data-tab="trabajadores">Trabajadores</button>
+          <button type="button" class="tabs__btn" data-tab="empresas">Empresas</button>
           <button type="button" class="tabs__btn tabs__btn--active" data-tab="generar">
             Generar XML
           </button>
-          <button type="button" class="tabs__btn" data-tab="empresas">Empresas</button>
-          <button type="button" class="tabs__btn" data-tab="trabajadores">Trabajadores</button>
         </nav>
       </header>
 
@@ -91,7 +91,11 @@
                   ← Anterior
                 </button>
                 <div class="records-part-bar__center">
-                  <div id="recordsPartTitle" class="records-part-title">Parte 1</div>
+                  <div class="records-page-index">
+                    <label class="records-page-index__label" for="xmlFileSelect">Página</label>
+                    <select id="xmlFileSelect" class="records-page-index__select" title="Ir a una página"></select>
+                    <span id="recordsPartTitle" class="records-part-title">de 1</span>
+                  </div>
                   <div id="recordsChunkHint" class="records-chunk-hint muted"></div>
                 </div>
                 <button type="button" id="xmlPartNext" class="btn btn--secondary btn--sm records-nav-btn">
@@ -106,10 +110,6 @@
                   <button type="button" class="records-filter" data-records-filter="incomplete">Incompletos</button>
                 </div>
                 <div class="records-export-group">
-                  <label class="records-jump" for="xmlFileSelect">
-                    <span class="records-jump__label">Ir a</span>
-                    <select id="xmlFileSelect" class="records-jump__select" title="Ir a una parte concreta"></select>
-                  </label>
                   <button type="button" id="exportOneBtn" class="btn btn--secondary btn--sm">
                     Exportar este XML
                   </button>

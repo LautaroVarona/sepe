@@ -64,4 +64,19 @@ if (!okNoMatch) {
   failed += 1;
 }
 
+// DNI desconocido pero nombre único → fallback por nombre
+const byNameFallback = findTrabajadorInIndex(index, {
+  IDENTIFICADORPFISICA: '99999999Z',
+  NOMBRE: 'MARIA',
+  PRIMER_APELLIDO: 'PEREZ',
+  SEGUNDO_APELLIDO: '',
+});
+const okNameFallback =
+  byNameFallback.trabajador?.id === 2 && byNameFallback.matchBy === 'nombre';
+console.log(`${okNameFallback ? 'OK' : 'FAIL'} fallback por nombre si DNI no coincide`);
+if (!okNameFallback) {
+  console.log('  got:', byNameFallback);
+  failed += 1;
+}
+
 process.exit(failed > 0 ? 1 : 0);

@@ -36,6 +36,10 @@ function isEmpty(val) {
 
 export function trabajadorToRecord(t) {
   if (!t) return {};
+  const codigo =
+    String(t.codigo_interno_a3 ?? '').trim() ||
+    String(t.a3_worker_token ?? '').trim() ||
+    '';
   return {
     IDENTIFICADORPFISICA: t.identificador_pfisica ?? '',
     NOMBRE: t.nombre ?? '',
@@ -50,9 +54,10 @@ export function trabajadorToRecord(t) {
     CODIGO_OCUPACION: t.codigo_ocupacion ?? '',
     NIVEL_FORMATIVO: t.nivel_formativo ?? '',
     IND_INCORPORA_ACTIVIDAD: t.ind_incorpora_actividad ?? '',
-    CODIGO_INTERNO_A3: t.codigo_interno_a3 ?? '',
+    CODIGO_INTERNO_A3: codigo,
+    CODIGO_TRABAJADOR: codigo,
     CODIGO_EMPRESA_A3: t.codigo_empresa_a3 ?? '',
-    A3_WORKER_TOKEN: t.a3_worker_token ?? '',
+    A3_WORKER_TOKEN: codigo || (t.a3_worker_token ?? ''),
   };
 }
 
@@ -106,10 +111,20 @@ export function mergeRecord(excelRecord, { empresa, trabajador, matchBy } = {}) 
   }
 
   const codigoExcel =
-    merged.CODIGO_TRABAJADOR || merged.CODIGO_DEL_TRABAJADOR || merged.CODIGO_INTERNO_A3;
+    merged.CODIGO_TRABAJADOR ||
+    merged.CODIGO_DEL_TRABAJADOR ||
+    merged.CODIGO_INTERNO_A3 ||
+    merged.A3_WORKER_TOKEN ||
+    trabajador?.codigo_interno_a3 ||
+    trabajador?.a3_worker_token ||
+    '';
   if (!isEmpty(codigoExcel)) {
-    merged.CODIGO_TRABAJADOR = codigoExcel;
-    merged.CODIGO_INTERNO_A3 = codigoExcel;
+    const codigo = String(codigoExcel).trim();
+    merged.CODIGO_TRABAJADOR = codigo;
+    merged.CODIGO_INTERNO_A3 = codigo;
+    if (isEmpty(merged.A3_WORKER_TOKEN)) {
+      merged.A3_WORKER_TOKEN = codigo;
+    }
   }
 
   if (matchBy) {

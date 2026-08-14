@@ -254,17 +254,25 @@ function updateRecordsToolbarUI() {
   if (prev) prev.disabled = !total || activeFileIndex <= 0;
   if (next) next.disabled = !total || activeFileIndex >= total - 1;
 
+  const select = document.getElementById('xmlFileSelect');
+  const pageIndex = select?.closest('.records-page-index');
+  const pageLabel = pageIndex?.querySelector('.records-page-index__label');
+  if (select) {
+    select.hidden = total <= 1;
+    if (pageLabel) pageLabel.hidden = total <= 1;
+    if (pageIndex) pageIndex.hidden = total === 0;
+  }
+
   if (title) {
     if (!file) {
       title.textContent = 'Sin partes XML';
       title.removeAttribute('title');
     } else if (total > 1) {
-      const part = file.part ?? activeFileIndex + 1;
       const totalParts = file.totalParts ?? total;
-      title.textContent = `Parte ${part} de ${totalParts} · ${file.count} reg.`;
+      title.textContent = `de ${totalParts} · ${file.count} reg.`;
       title.title = file.name;
     } else {
-      title.textContent = `${file.name} · ${file.count} reg.`;
+      title.textContent = `${file.name || 'XML'} · ${file.count} reg.`;
       title.title = '';
     }
   }
@@ -299,6 +307,8 @@ async function fetchXmlForRecords(records, { singleFile = false } = {}) {
       baseName: exportBaseName,
       records: recordsToApiPayload(records),
       singleFile: singleFile || undefined,
+      store: getAppStore(),
+      empresaId: empresaSelect.value || undefined,
     }),
   });
   const data = await res.json();
@@ -315,6 +325,8 @@ async function fetchXmlFilesForRecords(records) {
     body: JSON.stringify({
       baseName: exportBaseName,
       records: recordsToApiPayload(records),
+      store: getAppStore(),
+      empresaId: empresaSelect.value || undefined,
     }),
   });
   const data = await res.json();
@@ -511,6 +523,8 @@ async function rebuildXmlFromRecords() {
       body: JSON.stringify({
         baseName: exportBaseName,
         records: recordsToApiPayload(processedRecords),
+        store: getAppStore(),
+        empresaId: empresaSelect.value || undefined,
       }),
     });
     const data = await res.json();
@@ -547,11 +561,13 @@ function applyGenerationPayload(data, { scroll = true, resetFilter = scroll } = 
   const select = document.getElementById('xmlFileSelect');
   if (select) {
     select.innerHTML = data.files
-      .map(
-        (f, i) =>
-          `<option value="${i}">${escapeHtml(f.name)} (${f.count} reg.)</option>`,
-      )
+      .map((f, i) => {
+        const page = f.part ?? i + 1;
+        const label = `${page} (${f.count} reg.)`;
+        return `<option value="${i}" title="${escapeHtml(f.name)}">${escapeHtml(label)}</option>`;
+      })
       .join('');
+    select.hidden = data.files.length <= 1;
   }
 
   setActiveXmlPart(Math.min(activeFileIndex, data.files.length - 1));
@@ -908,6 +924,11 @@ async function loadEmpresasForSelects() {
         return `<option value="${e.id}">${escapeHtml(label)}${escapeHtml(cod)}</option>`;
       })
       .join('');
+
+  // Siempre marcar la primera empresa disponible como por defecto.
+  if (empresas.length > 0) {
+    empresaSelect.value = empresas[0].id;
+  }
 
   const trabSel = document.getElementById('trabajadorEmpresa');
   if (trabSel) {

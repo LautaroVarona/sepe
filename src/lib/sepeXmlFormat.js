@@ -27,9 +27,13 @@ export function formatCodigoOcupacionForXml(value) {
   return digits.padEnd(8, ' ');
 }
 
-/** Devuelve la clave válida o cadena vacía (omitir etiqueta en XML). */
+/** Devuelve la clave válida E+15, código corto numérico, o vacío. */
 export function sanitizeClaveContratoTrans(value) {
-  return isValidClaveContratoTrans(value) ? String(value).trim() : '';
+  const v = String(value ?? '').trim();
+  if (isValidClaveContratoTrans(v)) return v;
+  // Códigos cortos (p. ej. 300): se conservan para UI/USOLIBRE; el XML los omite.
+  if (/^\d{1,4}$/.test(v)) return v;
+  return '';
 }
 
 /**

@@ -25,6 +25,15 @@ const { record, warnings } = cleanLlamamientoRecord({
 assert.equal(record.IDENTIFICADORPFISICA, 'Z3160179F');
 assert.equal(record.FECHA_INICIO, '20260201');
 assert.equal(record.FECHA_FIN, '20260401');
+assert.equal(record.CLAVE_CONTRATO_TRANS, '300');
+assert.equal(record.CODIGO_CONTRATO_CORTO, '300');
 assert.ok(warnings.length >= 2);
+
+const withContrato = cleanLlamamientoRecord({
+  IDENTIFICADORPFISICA: '48714799V',
+  CLAVE_CONTRATO_TRANS: '100',
+});
+assert.equal(withContrato.record.CLAVE_CONTRATO_TRANS, '100');
+assert.equal(withContrato.record.CODIGO_CONTRATO_CORTO, '100');
 
 console.log('test-clean-llamamiento: OK');

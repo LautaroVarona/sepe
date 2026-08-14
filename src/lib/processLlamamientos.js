@@ -28,6 +28,37 @@ function sanitizeBaseName(name) {
   return name.replace(/[^\w.-]/g, '_') || 'LLAMAMIENTOS';
 }
 
+function nombreSortKey(record = {}) {
+  const parts = [record.NOMBRE, record.PRIMER_APELLIDO, record.SEGUNDO_APELLIDO]
+    .map((p) => String(p ?? '').trim())
+    .filter(Boolean);
+  return parts.join(' ').toLocaleUpperCase('es');
+}
+
+function fechaSortKey(record = {}) {
+  const inicio = String(record.FECHA_INICIO ?? '').replace(/\D/g, '');
+  if (inicio) return inicio.padEnd(8, '0');
+  const fin = String(record.FECHA_FIN ?? '').replace(/\D/g, '');
+  return fin ? fin.padEnd(8, '0') : '99999999';
+}
+
+/**
+ * Orden estable: Nombre (ascendente), luego Fecha (inicio) ascendente.
+ */
+export function sortLlamamientoRowsByPersonaFecha(rows) {
+  return [...rows].sort((a, b) => {
+    const ra = a.record ?? a;
+    const rb = b.record ?? b;
+    const byNombre = nombreSortKey(ra).localeCompare(nombreSortKey(rb), 'es');
+    if (byNombre !== 0) return byNombre;
+    const byFecha = fechaSortKey(ra).localeCompare(fechaSortKey(rb));
+    if (byFecha !== 0) return byFecha;
+    const rowA = a.excelRowNumber ?? a.row ?? 0;
+    const rowB = b.excelRowNumber ?? b.row ?? 0;
+    return rowA - rowB;
+  });
+}
+
 export function processLlamamientos(source, options = {}) {
   const {
     sheetIndex = 0,
@@ -204,8 +235,9 @@ export function processLlamamientos(source, options = {}) {
     });
   }
 
-  const { files } = buildXmlFilesFromRows(processedRows, baseName);
-  const incompleteCount = processedRows.filter((r) => !r.complete).length;
+  const sortedRows = sortLlamamientoRowsByPersonaFecha(processedRows);
+  const { files } = buildXmlFilesFromRows(sortedRows, baseName);
+  const incompleteCount = sortedRows.filter((r) => !r.complete).length;
   const discardSummary = buildDiscardSummary(discardedRows);
 
   const warnings = [...new Set(allWarnings)];
@@ -213,7 +245,7 @@ export function processLlamamientos(source, options = {}) {
     discardedRows,
     processingLog: {
       excelRows: meta.pairing?.excelMovements ?? rows.length,
-      processed: processedRows.length,
+      processed: sortedRows.length,
       discarded: discardedRows.length,
       byReason: discardSummary.byReason,
     },
@@ -223,20 +255,20 @@ export function processLlamamientos(source, options = {}) {
     ok: true,
     baseName,
     files,
-    records: processedRows,
+    records: sortedRows,
     discardedRows,
-    recordCount: processedRows.length,
+    recordCount: sortedRows.length,
     discardedCount: discardedRows.length,
     fileCount: files.length,
     rowCount: meta.pairing?.excelMovements ?? rows.length,
     excelMovementCount: meta.pairing?.excelMovements,
     incompleteCount,
-    completeCount: processedRows.length - incompleteCount,
+    completeCount: sortedRows.length - incompleteCount,
     matchedFromTrabajador,
     trabajadoresEnSistema: store.trabajadores?.length ?? 0,
     processingLog: {
       excelRows: meta.pairing?.excelMovements ?? rows.length,
-      processed: processedRows.length,
+      processed: sortedRows.length,
       discarded: discardedRows.length,
       byReason: discardSummary.byReason,
     },
@@ -249,28 +281,49 @@ export function processLlamamientos(source, options = {}) {
 
 export function rebuildLlamamientosFromRows(processedRows, baseName, options = {}) {
   const sanitized = sanitizeBaseName(baseName);
-  const rows = processedRows.map((row, i) => {
-    const rowLabel = formatExcelRowLabel({
-      excelRowNumber: row.excelRowNumber ?? row.row ?? i + 2,
-      sourceRows: row.sourceRows,
-    });
-    const normalized = normalizeRecordForSepe(row.record ?? row);
-    const usolibre = applyUsoLibreEmpresaToRecord(normalized.record, { rowLabel });
-    const validation = validateRecordSoft(usolibre.record, rowLabel);
-    return {
-      record: applySepeXmlFormatRules(validation.record),
-      excelRowNumber: row.excelRowNumber ?? row.row,
-      excelRowEnd: row.excelRowEnd,
-      sourceRows: row.sourceRows,
-      movementPair: row.movementPair,
-      complete: validation.complete,
-      missingFields: validation.missingFields,
-      matchedTrabajador: row.matchedTrabajador ?? null,
-      matchedEmpresa: row.matchedEmpresa ?? null,
-      matchBy: row.matchBy ?? null,
-      filledFrom: row.filledFrom ?? [],
-    };
-  });
+  const store = options.store ?? { empresas: [], trabajadores: [] };
+  const trabajadorIndex = buildTrabajadorIndex(store.trabajadores ?? []);
+  const empresaId = options.empresaId ?? null;
+
+  const rows = sortLlamamientoRowsByPersonaFecha(
+    processedRows.map((row, i) => {
+      const rowLabel = formatExcelRowLabel({
+        excelRowNumber: row.excelRowNumber ?? row.row ?? i + 2,
+        sourceRows: row.sourceRows,
+      });
+      const baseRecord = row.record ?? row;
+      const { empresa, trabajador } = resolveContext(baseRecord, store, {
+        empresaId,
+        trabajadorIndex,
+      });
+      const {
+        record: merged,
+        matchedTrabajador,
+        matchedEmpresa,
+        matchBy,
+      } = mergeRecord(baseRecord, { empresa, trabajador });
+      const normalized = normalizeRecordForSepe(merged);
+      const usolibre = applyUsoLibreEmpresaToRecord(normalized.record, {
+        trabajador,
+        empresa,
+        rowLabel,
+      });
+      const validation = validateRecordSoft(usolibre.record, rowLabel);
+      return {
+        record: applySepeXmlFormatRules(validation.record),
+        excelRowNumber: row.excelRowNumber ?? row.row,
+        excelRowEnd: row.excelRowEnd,
+        sourceRows: row.sourceRows,
+        movementPair: row.movementPair,
+        complete: validation.complete,
+        missingFields: validation.missingFields,
+        matchedTrabajador: matchedTrabajador ?? row.matchedTrabajador ?? null,
+        matchedEmpresa: matchedEmpresa ?? row.matchedEmpresa ?? null,
+        matchBy: matchBy ?? row.matchBy ?? null,
+        filledFrom: row.filledFrom ?? [],
+      };
+    }),
+  );
 
   const incompleteCount = rows.filter((r) => !r.complete).length;
   const { files, recordCount } = buildXmlFilesFromRows(rows, sanitized, options);

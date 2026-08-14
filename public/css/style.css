@@ -13,7 +13,7 @@
   --error-border: #fecaca;
   --error-text: #991b1b;
   --ok-bg: #ecfdf5;
-  --ok-border: #a7f3d0;
+  --ok-border: #7222c7;
   --ok-text: #065f46;
   --radius: 8px;
 }
@@ -186,18 +186,54 @@ body {
   text-align: center;
   min-width: 0;
   padding: 0 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.records-page-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.records-page-index__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.records-page-index__select {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 5.5rem;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.records-page-index__select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent, #2563eb) 35%, transparent);
+  outline-offset: 1px;
 }
 
 .records-part-title {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
   line-height: 1.25;
 }
 
 .records-chunk-hint {
   font-size: 0.68rem;
-  margin-top: 0.1rem;
+  margin-top: 0.05rem;
   display: block;
 }
 
@@ -216,24 +252,6 @@ body {
   justify-content: flex-end;
   gap: 0.35rem;
   margin-left: auto;
-}
-
-.records-jump {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.68rem;
-  color: var(--muted);
-}
-
-.records-jump__select {
-  font: inherit;
-  font-size: 0.68rem;
-  padding: 0.22rem 0.35rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: #fff;
-  max-width: 11rem;
 }
 
 .records-filters--pills {

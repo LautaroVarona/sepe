@@ -173,24 +173,24 @@ function personKeys(record) {
   return keys;
 }
 
-function registerPendingAlta(pendingByKey, pendingEntries, alta) {
-  const keys = personKeys(alta.record);
+function registerPendingMovement(pendingByKey, pendingEntries, movement, kind) {
+  const keys = personKeys(movement.record);
   if (keys.length === 0) return null;
-  const entry = { alta, keys };
+  const entry = { [kind]: movement, kind, keys, fecha: movement.fecha || '' };
   pendingEntries.add(entry);
   for (const key of keys) pendingByKey.set(key, entry);
   return entry;
 }
 
-function findPendingAlta(pendingByKey, record) {
+function findPendingMovement(pendingByKey, record, kind) {
   for (const key of personKeys(record)) {
     const entry = pendingByKey.get(key);
-    if (entry) return entry;
+    if (entry?.kind === kind) return entry;
   }
   return null;
 }
 
-function clearPendingAlta(pendingByKey, pendingEntries, entry) {
+function clearPendingMovement(pendingByKey, pendingEntries, entry) {
   pendingEntries.delete(entry);
   for (const key of entry.keys) pendingByKey.delete(key);
 }
@@ -213,11 +213,13 @@ function mergeAltaBaja(alta, baja) {
   record.FECHA_INICIO = alta.fecha || a.FECHA_INICIO || '';
   record.FECHA_FIN = baja.fecha || b.FECHA_FIN || '';
 
+  const rows = [alta.excelRowNumber, baja.excelRowNumber].sort((x, y) => x - y);
+
   return {
     record,
-    excelRowNumber: alta.excelRowNumber,
-    excelRowEnd: baja.excelRowNumber,
-    sourceRows: [alta.excelRowNumber, baja.excelRowNumber],
+    excelRowNumber: rows[0],
+    excelRowEnd: rows[1],
+    sourceRows: rows,
     movementPair: 'alta+baja',
     movementTypes: ['alta', 'baja'],
   };
@@ -249,6 +251,7 @@ function finalizeBajaOnly(baja) {
 
 /**
  * Empareja filas Alta/Baja del Excel Saltra en un llamamiento (inicio + fin).
+ * También empareja Baja→Alta del mismo día (llamamiento de un solo día válido).
  */
 export function pairAltaBajaMovements(movements) {
   const pendingByKey = new Map();
@@ -286,41 +289,55 @@ export function pairAltaBajaMovements(movements) {
     }
 
     if (mov.movementType === 'alta') {
-      const existing = findPendingAlta(pendingByKey, mov.record);
+      // Baja previa del mismo día → llamamiento de un solo día (válido).
+      const pendingBaja = findPendingMovement(pendingByKey, mov.record, 'baja');
+      if (pendingBaja && pendingBaja.fecha && pendingBaja.fecha === mov.fecha) {
+        output.push(mergeAltaBaja(mov, pendingBaja.baja));
+        clearPendingMovement(pendingByKey, pendingEntries, pendingBaja);
+        pairedCount += 1;
+        continue;
+      }
+
+      const existing = findPendingMovement(pendingByKey, mov.record, 'alta');
       if (existing) {
         output.push(finalizeAltaOnly(existing.alta));
-        clearPendingAlta(pendingByKey, pendingEntries, existing);
+        clearPendingMovement(pendingByKey, pendingEntries, existing);
         altaSinBaja += 1;
         warnings.push(
           `Filas ${existing.alta.excelRowNumber}–${mov.excelRowNumber}: nueva Alta sin Baja de la Alta anterior (mismo trabajador)`,
         );
       }
-      registerPendingAlta(pendingByKey, pendingEntries, mov);
+      registerPendingMovement(pendingByKey, pendingEntries, mov, 'alta');
       continue;
     }
 
     if (mov.movementType === 'baja') {
-      const pendingEntry = findPendingAlta(pendingByKey, mov.record);
-      if (pendingEntry) {
-        output.push(mergeAltaBaja(pendingEntry.alta, mov));
-        clearPendingAlta(pendingByKey, pendingEntries, pendingEntry);
+      const pendingAlta = findPendingMovement(pendingByKey, mov.record, 'alta');
+      if (pendingAlta) {
+        output.push(mergeAltaBaja(pendingAlta.alta, mov));
+        clearPendingMovement(pendingByKey, pendingEntries, pendingAlta);
         pairedCount += 1;
       } else {
-        output.push(finalizeBajaOnly(mov));
-        bajaSinAlta += 1;
-        warnings.push(
-          `Fila ${mov.excelRowNumber}: Baja sin Alta previa del mismo trabajador`,
-        );
+        // Puede emparejarse después con una Alta del mismo día.
+        registerPendingMovement(pendingByKey, pendingEntries, mov, 'baja');
       }
     }
   }
 
   for (const entry of pendingEntries) {
-    output.push(finalizeAltaOnly(entry.alta));
-    altaSinBaja += 1;
-    warnings.push(
-      `Fila ${entry.alta.excelRowNumber}: Alta sin Baja emparejada (mismo trabajador)`,
-    );
+    if (entry.kind === 'alta') {
+      output.push(finalizeAltaOnly(entry.alta));
+      altaSinBaja += 1;
+      warnings.push(
+        `Fila ${entry.alta.excelRowNumber}: Alta sin Baja emparejada (mismo trabajador)`,
+      );
+    } else if (entry.kind === 'baja') {
+      output.push(finalizeBajaOnly(entry.baja));
+      bajaSinAlta += 1;
+      warnings.push(
+        `Fila ${entry.baja.excelRowNumber}: Baja sin Alta previa del mismo trabajador`,
+      );
+    }
   }
 
   return {

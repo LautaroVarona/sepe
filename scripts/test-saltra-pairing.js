@@ -102,4 +102,45 @@ assert.equal(
 );
 assert.equal(isSaltraLlamamientosFormat(['NOMBRE', 'DNI', 'FECHA_INICIO']), false);
 
+// Baja antes que Alta, misma fecha → llamamiento de un solo día (válido)
+{
+  const { rows, pairing } = pairAltaBajaMovements([
+    mov({ row: 673, type: 'baja', dni: '12345678Z', fecha: '20260307' }),
+    mov({ row: 674, type: 'alta', dni: '12345678Z', fecha: '20260307' }),
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].movementPair, 'alta+baja');
+  assert.equal(rows[0].record.FECHA_INICIO, '20260307');
+  assert.equal(rows[0].record.FECHA_FIN, '20260307');
+  assert.equal(rows[0].sourceRows.join(','), '673,674');
+  assert.equal(pairing.pairedAltaBaja, 1);
+  assert.equal(pairing.bajaSinAlta, 0);
+  assert.equal(pairing.altaSinBaja, 0);
+}
+
+// Alta + Baja mismo día (orden natural)
+{
+  const { rows, pairing } = pairAltaBajaMovements([
+    mov({ row: 2, type: 'alta', dni: '12345678Z', fecha: '20260308' }),
+    mov({ row: 3, type: 'baja', dni: '12345678Z', fecha: '20260308' }),
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].movementPair, 'alta+baja');
+  assert.equal(rows[0].record.FECHA_INICIO, '20260308');
+  assert.equal(rows[0].record.FECHA_FIN, '20260308');
+  assert.equal(pairing.pairedAltaBaja, 1);
+}
+
+// Baja huérfana + Alta de otro día → no se emparejan
+{
+  const { rows, pairing } = pairAltaBajaMovements([
+    mov({ row: 2, type: 'baja', dni: '12345678Z', fecha: '20260301' }),
+    mov({ row: 3, type: 'alta', dni: '12345678Z', fecha: '20260310' }),
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(pairing.bajaSinAlta, 1);
+  assert.equal(pairing.altaSinBaja, 1);
+  assert.equal(pairing.pairedAltaBaja, 0);
+}
+
 console.log('test-saltra-pairing: OK');
