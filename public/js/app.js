@@ -756,7 +756,7 @@ function showGenerateResult(data) {
 
   if (pairing) {
     summaryHtml += `<p class="hint-line hint-line--ok">
-      Formato Saltra: cada llamamiento une una fila <strong>Alta</strong> (inicio, contrato, ocupación) con la <strong>Baja</strong> del mismo trabajador (fecha fin).
+      Formato Saltra: cada llamamiento une una fila <strong>Alta</strong> (inicio, contrato, ocupación) con la <strong>Baja</strong> del mismo trabajador (fecha fin), también si en el Excel la Baja aparece antes que el Alta.
       ${pairing.pairedAltaBaja} parejas · ${pairing.altaSinBaja} solo alta · ${pairing.bajaSinAlta} solo baja.
     </p>`;
   }
@@ -1443,7 +1443,7 @@ if (trabajadoresDeleteAll) {
 }
 
 async function checkServerVersion() {
-  const clientVersion = window.SEPEIMP_ASSET_VERSION || '2.5.2';
+  const clientVersion = window.SEPEIMP_ASSET_VERSION || '2.5.3';
   try {
     const res = await fetch('/api/health', { cache: 'no-store' });
     const h = await res.json();

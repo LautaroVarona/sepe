@@ -173,16 +173,18 @@ function personKeys(record) {
   return keys;
 }
 
-function registerPendingMovement(pendingByKey, pendingEntries, movement, kind) {
+function registerPendingMovement(pendingByKind, pendingEntries, movement, kind) {
   const keys = personKeys(movement.record);
   if (keys.length === 0) return null;
+  const pendingByKey = pendingByKind[kind];
   const entry = { [kind]: movement, kind, keys, fecha: movement.fecha || '' };
   pendingEntries.add(entry);
   for (const key of keys) pendingByKey.set(key, entry);
   return entry;
 }
 
-function findPendingMovement(pendingByKey, record, kind) {
+function findPendingMovement(pendingByKind, record, kind) {
+  const pendingByKey = pendingByKind[kind];
   for (const key of personKeys(record)) {
     const entry = pendingByKey.get(key);
     if (entry?.kind === kind) return entry;
@@ -190,9 +192,17 @@ function findPendingMovement(pendingByKey, record, kind) {
   return null;
 }
 
-function clearPendingMovement(pendingByKey, pendingEntries, entry) {
+function clearPendingMovement(pendingByKind, pendingEntries, entry) {
   pendingEntries.delete(entry);
-  for (const key of entry.keys) pendingByKey.delete(key);
+  const pendingByKey = pendingByKind[entry.kind];
+  for (const key of entry.keys) {
+    if (pendingByKey.get(key) === entry) pendingByKey.delete(key);
+  }
+}
+
+/** Baja en fila anterior + Alta posterior: válido si el inicio no es posterior al fin. */
+function canPairBajaThenAlta(altaFecha, bajaFecha) {
+  return Boolean(altaFecha && bajaFecha && altaFecha <= bajaFecha);
 }
 
 function mergeField(target, altaVal, bajaVal) {
@@ -251,10 +261,11 @@ function finalizeBajaOnly(baja) {
 
 /**
  * Empareja filas Alta/Baja del Excel Saltra en un llamamiento (inicio + fin).
- * También empareja Baja→Alta del mismo día (llamamiento de un solo día válido).
+ * El Excel suele ir de más reciente a más antiguo (Baja antes que Alta):
+ * se unen si la fecha de Alta no es posterior a la de Baja.
  */
 export function pairAltaBajaMovements(movements) {
-  const pendingByKey = new Map();
+  const pendingByKind = { alta: new Map(), baja: new Map() };
   const pendingEntries = new Set();
   const output = [];
   const warnings = [];
@@ -289,37 +300,43 @@ export function pairAltaBajaMovements(movements) {
     }
 
     if (mov.movementType === 'alta') {
-      // Baja previa del mismo día → llamamiento de un solo día (válido).
-      const pendingBaja = findPendingMovement(pendingByKey, mov.record, 'baja');
-      if (pendingBaja && pendingBaja.fecha && pendingBaja.fecha === mov.fecha) {
+      const pendingBaja = findPendingMovement(pendingByKind, mov.record, 'baja');
+      if (pendingBaja && canPairBajaThenAlta(mov.fecha, pendingBaja.fecha)) {
         output.push(mergeAltaBaja(mov, pendingBaja.baja));
-        clearPendingMovement(pendingByKey, pendingEntries, pendingBaja);
+        clearPendingMovement(pendingByKind, pendingEntries, pendingBaja);
         pairedCount += 1;
         continue;
       }
+      if (pendingBaja) {
+        output.push(finalizeBajaOnly(pendingBaja.baja));
+        clearPendingMovement(pendingByKind, pendingEntries, pendingBaja);
+        bajaSinAlta += 1;
+        warnings.push(
+          `Fila ${pendingBaja.baja.excelRowNumber}: Baja sin Alta previa del mismo trabajador`,
+        );
+      }
 
-      const existing = findPendingMovement(pendingByKey, mov.record, 'alta');
+      const existing = findPendingMovement(pendingByKind, mov.record, 'alta');
       if (existing) {
         output.push(finalizeAltaOnly(existing.alta));
-        clearPendingMovement(pendingByKey, pendingEntries, existing);
+        clearPendingMovement(pendingByKind, pendingEntries, existing);
         altaSinBaja += 1;
         warnings.push(
           `Filas ${existing.alta.excelRowNumber}–${mov.excelRowNumber}: nueva Alta sin Baja de la Alta anterior (mismo trabajador)`,
         );
       }
-      registerPendingMovement(pendingByKey, pendingEntries, mov, 'alta');
+      registerPendingMovement(pendingByKind, pendingEntries, mov, 'alta');
       continue;
     }
 
     if (mov.movementType === 'baja') {
-      const pendingAlta = findPendingMovement(pendingByKey, mov.record, 'alta');
+      const pendingAlta = findPendingMovement(pendingByKind, mov.record, 'alta');
       if (pendingAlta) {
         output.push(mergeAltaBaja(pendingAlta.alta, mov));
-        clearPendingMovement(pendingByKey, pendingEntries, pendingAlta);
+        clearPendingMovement(pendingByKind, pendingEntries, pendingAlta);
         pairedCount += 1;
       } else {
-        // Puede emparejarse después con una Alta del mismo día.
-        registerPendingMovement(pendingByKey, pendingEntries, mov, 'baja');
+        registerPendingMovement(pendingByKind, pendingEntries, mov, 'baja');
       }
     }
   }

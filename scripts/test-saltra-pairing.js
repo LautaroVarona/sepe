@@ -143,4 +143,37 @@ assert.equal(isSaltraLlamamientosFormat(['NOMBRE', 'DNI', 'FECHA_INICIO']), fals
   assert.equal(pairing.pairedAltaBaja, 0);
 }
 
+// Excel de más reciente a más antiguo: Baja 11/07 luego Alta 10/07 → un llamamiento
+{
+  const { rows, pairing } = pairAltaBajaMovements([
+    mov({ row: 651, type: 'baja', dni: '23889417F', fecha: '20260711' }),
+    mov({ row: 652, type: 'alta', dni: '23889417F', fecha: '20260710' }),
+    mov({ row: 653, type: 'alta', dni: '23889417F', fecha: '20260610' }),
+    mov({ row: 654, type: 'baja', dni: '23889417F', fecha: '20260607' }),
+  ]);
+  assert.equal(pairing.pairedAltaBaja, 2);
+  assert.equal(pairing.altaSinBaja, 0);
+  assert.equal(pairing.bajaSinAlta, 0);
+  const first = rows.find((r) => r.sourceRows.includes(651));
+  assert.equal(first.movementPair, 'alta+baja');
+  assert.equal(first.record.FECHA_INICIO, '20260710');
+  assert.equal(first.record.FECHA_FIN, '20260711');
+}
+
+// Dos periodos Baja→Alta del mismo trabajador (orden inverso del Excel)
+{
+  const { rows, pairing } = pairAltaBajaMovements([
+    mov({ row: 4101, type: 'baja', dni: '22592654F', fecha: '20260616' }),
+    mov({ row: 4102, type: 'alta', dni: '22592654F', fecha: '20260610' }),
+    mov({ row: 4103, type: 'baja', dni: '22592654F', fecha: '20260531' }),
+    mov({ row: 4104, type: 'alta', dni: '22592654F', fecha: '20260528' }),
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(pairing.pairedAltaBaja, 2);
+  assert.equal(rows[0].record.FECHA_INICIO, '20260610');
+  assert.equal(rows[0].record.FECHA_FIN, '20260616');
+  assert.equal(rows[1].record.FECHA_INICIO, '20260528');
+  assert.equal(rows[1].record.FECHA_FIN, '20260531');
+}
+
 console.log('test-saltra-pairing: OK');

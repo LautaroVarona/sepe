@@ -1,6 +1,6 @@
 {
   "name": "sepeimp",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "description": "Generador XML SEPE L2606002 (LLAMAMIENTOS) desde Excel",
   "type": "module",
   "scripts": {
