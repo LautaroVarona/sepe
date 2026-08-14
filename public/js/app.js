@@ -23,6 +23,7 @@ import {
   appendStoreToFormData,
   pushStoreToServer,
 } from './localDb.js';
+import { buildXmlFilesFromRecords } from '/js/xml-build.js';
 
 // --- Utilidades ---
 function escapeHtml(str) {
@@ -281,59 +282,17 @@ function updateRecordsToolbarUI() {
   if (exportAll) exportAll.textContent = labels.all;
 }
 
-function recordsToApiPayload(records) {
-  return records.map((r) => ({
-    excelRowNumber: r.row,
-    sourceRows: r.sourceRows,
-    movementPair: r.movementPair,
-    record: r.record,
-    matchedTrabajador: r.matchedTrabajador,
-    matchedEmpresa: r.matchedEmpresa,
-    matchBy: r.matchBy,
-    filledFrom: r.filledFrom,
-  }));
-}
-
 function getActiveChunkRecords() {
   const { start, count } = getActiveChunk();
   return processedRecords.slice(start, start + count);
 }
 
-async function fetchXmlForRecords(records, { singleFile = false } = {}) {
-  const res = await fetch('/api/rebuild-xml', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      baseName: exportBaseName,
-      records: recordsToApiPayload(records),
-      singleFile: singleFile || undefined,
-      store: getAppStore(),
-      empresaId: empresaSelect.value || undefined,
-    }),
+function buildExportXmlFiles(records, { singleFile = false } = {}) {
+  if (!records.length) return [];
+  const { files } = buildXmlFilesFromRecords(records, exportBaseName, {
+    singleFile,
   });
-  const data = await res.json();
-  if (!data.ok || !data.files?.[0]?.xml) {
-    throw new Error(data.errors?.join(' ') || 'No se pudo generar el XML');
-  }
-  return data.files[0].xml;
-}
-
-async function fetchXmlFilesForRecords(records) {
-  const res = await fetch('/api/rebuild-xml', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      baseName: exportBaseName,
-      records: recordsToApiPayload(records),
-      store: getAppStore(),
-      empresaId: empresaSelect.value || undefined,
-    }),
-  });
-  const data = await res.json();
-  if (!data.ok || !data.files?.length) {
-    throw new Error(data.errors?.join(' ') || 'No se pudo generar el XML');
-  }
-  return data.files;
+  return files;
 }
 
 function getAllExportRecords() {
@@ -514,25 +473,22 @@ function scheduleRebuildXml() {
   rebuildTimer = setTimeout(rebuildXmlFromRecords, 500);
 }
 
-async function rebuildXmlFromRecords() {
+function rebuildXmlFromRecords() {
   if (!processedRecords.length) return;
-  try {
-    const res = await fetch('/api/rebuild-xml', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        baseName: exportBaseName,
-        records: recordsToApiPayload(processedRecords),
-        store: getAppStore(),
-        empresaId: empresaSelect.value || undefined,
-      }),
-    });
-    const data = await res.json();
-    if (!data.ok) return;
-    applyGenerationPayload(data, { scroll: false, resetFilter: false });
-  } catch {
-    /* silencioso: el usuario sigue viendo la tabla */
+  const { files } = buildXmlFilesFromRecords(processedRecords, exportBaseName);
+  generatedFiles = files;
+  const select = document.getElementById('xmlFileSelect');
+  if (select) {
+    select.innerHTML = files
+      .map((f, i) => {
+        const page = f.part ?? i + 1;
+        const label = `${page} (${f.count} reg.)`;
+        return `<option value="${i}" title="${escapeHtml(f.name)}">${escapeHtml(label)}</option>`;
+      })
+      .join('');
+    select.hidden = files.length <= 1;
   }
+  setActiveXmlPart(Math.min(activeFileIndex, files.length - 1));
 }
 
 function applyGenerationPayload(data, { scroll = true, resetFilter = scroll } = {}) {
@@ -589,12 +545,12 @@ async function exportCurrentXml() {
     return;
   }
 
-  try {
-    const xml = await fetchXmlForRecords(filtered);
-    await saveXmlFile(file.name, xml);
-  } catch (err) {
-    alert(err.message || 'Error al exportar el XML filtrado');
+  const rebuilt = buildExportXmlFiles(filtered, { singleFile: true });
+  if (!rebuilt[0]?.xml) {
+    alert('No se pudo generar el XML filtrado.');
+    return;
   }
+  await saveXmlFile(file.name, rebuilt[0].xml);
 }
 
 async function exportAllXml() {
@@ -621,30 +577,26 @@ async function exportAllXml() {
   const bytesFor = (xml) => latin1ToBytes(xml);
 
   if (mode === 'single') {
-    try {
-      const xml = await fetchXmlForRecords(exportRecords, { singleFile: true });
-      await saveXmlFile(getSingleExportFileName(), xml);
-    } catch (err) {
-      alert(err.message || 'Error al exportar el XML unificado');
+    const rebuilt = buildExportXmlFiles(exportRecords, { singleFile: true });
+    if (!rebuilt[0]?.xml) {
+      alert('No se pudo generar el XML unificado.');
+      return;
     }
+    await saveXmlFile(getSingleExportFileName(), rebuilt[0].xml);
     return;
   }
 
   const filesToExport =
     recordsFilter === 'all'
       ? generatedFiles.map((f, i) => ({ name: f.name, xml: f.xml, index: i }))
-      : await (async () => {
-          try {
-            const rebuilt = await fetchXmlFilesForRecords(exportRecords);
-            return rebuilt.map((f, i) => ({ name: f.name, xml: f.xml, index: i }));
-          } catch (err) {
-            alert(err.message || 'Error al generar los XML filtrados');
-            return [];
-          }
-        })();
+      : buildExportXmlFiles(exportRecords).map((f, i) => ({
+          name: f.name,
+          xml: f.xml,
+          index: i,
+        }));
 
   if (!filesToExport.length) {
-    alert('No hay registros que coincidan con el filtro para exportar.');
+    alert('No hay ficheros XML para exportar.');
     return;
   }
 
@@ -1443,7 +1395,7 @@ if (trabajadoresDeleteAll) {
 }
 
 async function checkServerVersion() {
-  const clientVersion = window.SEPEIMP_ASSET_VERSION || '2.5.3';
+  const clientVersion = window.SEPEIMP_ASSET_VERSION || '2.5.4';
   try {
     const res = await fetch('/api/health', { cache: 'no-store' });
     const h = await res.json();

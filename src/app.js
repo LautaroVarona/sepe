@@ -29,7 +29,7 @@ import { backfillCodigosFromExcelBuffer } from './lib/services/worker-codigo-bac
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** Cambia al desplegar para forzar recarga de JS/CSS en otros ordenadores. */
-export const APP_VERSION = '2.5.3';
+export const APP_VERSION = '2.5.4';
 
 /** Límite del campo FormData `store` (JSON del maestro local); crece con el volumen de datos. */
 const STORE_FIELD_MAX = 20 * 1024 * 1024;
